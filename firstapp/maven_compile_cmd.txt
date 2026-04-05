@@ -1,0 +1,23 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------------< com.practice:firstapp >------------------------
+[INFO] Building firstapp 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.5.0:clean (default-clean) @ firstapp ---
+[INFO] Deleting C:\Users\jb352\Downloads\secureApp\firstapp\firstapp\target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ firstapp ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ firstapp ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 15 source files with javac [debug parameters release 21] to target\classes
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.903 s
+[INFO] Finished at: 2026-03-01T13:14:41+05:30
+[INFO] ------------------------------------------------------------------------

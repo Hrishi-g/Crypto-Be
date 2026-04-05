@@ -1,0 +1,53 @@
+server:
+  port: 8080
+  tomcat:
+    max-swallow-size: -1
+
+spring:
+  application:
+    name: firstapp
+  config:
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 1MB
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+    open-in-view: false
+
+  # cache:
+  #   type: caffeine
+  #   cache-names: crypto-data
+  #   caffeine:
+  #     spec: expireAfterWrite=120s
+jwt:
+  secret: ${JWT_SECRET}
+
+cloudinary:
+  cloud_name: ${CLOUDINARY_CLOUD_NAME}
+  api_key: ${CLOUDINARY_API_KEY}
+  api_secret: ${CLOUDINARY_API_SECRET}
+
+cors:
+  allowed-origin: ${CORS_ALLOWED_ORIGIN}
+
+logging:
+  level:
+    root: WARN
+    org.springframework: WARN
+    org.hibernate: WARN
+    com.practice.firstapp: WARN
