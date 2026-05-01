@@ -2,13 +2,12 @@ package com.practice.firstapp.vo;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
 import com.practice.firstapp.vo.enums.TransactionStatus;
 import com.practice.firstapp.vo.enums.TransactionType;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -28,8 +27,8 @@ public class Transaction {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private Users user;
+    @JoinColumn(name = "wallet_id", nullable = false)
+    private Wallet wallet;
 
     private BigDecimal amount;
 
@@ -43,7 +42,16 @@ public class Transaction {
 
     private String description;
 
+    @Column(precision = 38, scale = 8)
     private BigDecimal balanceAfter;
+
+    private String asset;
+
+    @Column(precision = 38, scale = 18)
+    private BigDecimal quantity;
+
+    @Column(precision = 38, scale = 8)
+    private BigDecimal price;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -59,12 +67,12 @@ public class Transaction {
         this.id = id;
     }
 
-    public Users getUser() {
-        return user;
+    public Wallet getWallet() {
+        return wallet;
     }
 
-    public void setUser(Users user) {
-        this.user = user;
+    public void setWallet(Wallet wallet) {
+        this.wallet = wallet;
     }
 
     public BigDecimal getAmount() {
@@ -113,5 +121,29 @@ public class Transaction {
 
     public void setBalanceAfter(BigDecimal balanceAfter) {
         this.balanceAfter = balanceAfter;
+    }
+
+    public String getAsset() {
+        return asset;
+    }
+
+    public void setAsset(String asset) {
+        this.asset = asset;
+    }
+
+    public BigDecimal getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(BigDecimal quantity) {
+        this.quantity = quantity;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
     }
 }

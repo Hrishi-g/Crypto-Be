@@ -2,6 +2,10 @@ package com.practice.firstapp.dto;
 
 import java.math.BigDecimal;
 
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class UserProfileDto {
     private String firstName;
     private String lastName;
@@ -18,8 +22,14 @@ public class UserProfileDto {
         this.username = username;
     }
 
+    @JsonIgnore
     public BigDecimal getTotalAmount() {
         return totalAmount;
+    }
+
+    @JsonProperty("totalAmount")
+    public String getTotalAmountPlain() {
+        return totalAmount != null ? totalAmount.toPlainString() : null;
     }
 
     public void setTotalAmount(BigDecimal totalAmount) {

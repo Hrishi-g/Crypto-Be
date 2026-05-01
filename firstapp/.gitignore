@@ -43,3 +43,19 @@ build/
 
 # Logs
 *.log
+
+# env files
+.env
+
+
+# Temp files
+*.tmp
+
+# OS
+.DS_Store
+
+deps.txt
+LOG_FILE_IS_UNDEFINED
+TestSize.java
+deps.txt
+

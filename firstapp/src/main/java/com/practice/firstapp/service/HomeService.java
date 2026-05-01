@@ -26,7 +26,7 @@ public class HomeService {
         this.webClient = webClient;
     }
 
-    @Cacheable(value = "crypto-data", key = "'all-crypto-page-' + #page + '-size-' + #perPage")
+    @Cacheable(value = "crypto-data", key = "'all-crypto-page-' + #page + '-size-' + #perPage", cacheManager = "asyncCacheManager")
     public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
         System.out.println("Fetching real crypto data from CoinGecko (Page: " + page + ", Size: " + perPage + ")...");
         String url = String.format("/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=%d&page=%d", perPage,
@@ -48,7 +48,7 @@ public class HomeService {
                 });
     }
 
-    @Cacheable(value = "crypto-data", key = "'search-' + #query")
+    @Cacheable(value = "crypto-data", key = "'search-' + #query", cacheManager = "asyncCacheManager")
     public Mono<List<CryptoDto>> searchCrypto(String query) {
         System.out.println("Searching for crypto with query: " + query);
         String searchUrl = "/search?query=" + query;
@@ -90,7 +90,7 @@ public class HomeService {
                 });
     }
 
-    @Cacheable(value = "exchange-rate", key = "'usd-inr'")
+    @Cacheable(value = "exchange-rate", key = "'usd-inr'", cacheManager = "asyncCacheManager")
     public Mono<Double> getUsdToInrRate() {
         // Using Tether (USDT) as it mirrors the Binance pairs exactly
         return webClient.get()
@@ -102,7 +102,7 @@ public class HomeService {
                 .onErrorResume(ex -> Mono.just(92.50));
     }
 
-    @Cacheable(value = "historical-data", key = "'historical-v2-' + #coinId + '-' + #days")
+    @Cacheable(value = "historical-data", key = "'historical-v2-' + #coinId + '-' + #days", cacheManager = "asyncCacheManager")
     public Mono<Map<String, Object>> getHistoricalData(String coinId, int days) {
         String url = String.format("/coins/%s/market_chart?vs_currency=inr&days=%d", coinId, days);
         // Captured snapshot time in IST

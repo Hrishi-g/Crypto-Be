@@ -1,16 +1,13 @@
 package com.practice.firstapp.service;
 
 import java.util.Arrays;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-
 import com.practice.firstapp.config.Utility;
 import com.practice.firstapp.repo.RefreshTokenRepo;
 import com.practice.firstapp.security.JwtUtils;
 import com.practice.firstapp.vo.Refresh_token;
 import com.practice.firstapp.vo.Users;
-
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

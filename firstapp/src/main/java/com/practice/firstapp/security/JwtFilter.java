@@ -11,11 +11,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import com.practice.firstapp.vo.Users;
 
+import com.practice.firstapp.dto.AuthDto;
+
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -46,25 +47,25 @@ public class JwtFilter extends OncePerRequestFilter {
         // Wrap in try-catch to handle ExpiredJwtException
         try {
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String username = jwtUtils.getUsernameFromToken(token);
+                Long userId = jwtUtils.getUserIdFromToken(token);
+                Claims claims = jwtUtils.extractAllClaims(token);
+                // String username = claims.get("username", String.class);
+                // String email = claims.get("email", String.class);
+                List<String> roles = claims.get("roles", List.class);
 
-                if (username != null && !jwtUtils.isTokenExpired(token)) {
-                    List<String> roles = jwtUtils.extractRoles(token);
+                if (roles == null)
+                    roles = List.of();
 
+                if (userId != null && !jwtUtils.isTokenExpired(token)) {
                     List<SimpleGrantedAuthority> authorities = roles.stream()
                             .map(SimpleGrantedAuthority::new)
                             .collect(Collectors.toList());
 
                     // Stateless: Treat the JWT as the source of truth for the user's roles
-                    Users principalUser = new Users();
-                    principalUser.setUsername(username);
-                    Long userId = jwtUtils.getUserIdFromToken(token);
-                    if (userId != null) {
-                        principalUser.setId(userId);
-                    }
+                    AuthDto authUser = new AuthDto(userId, roles);
 
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            principalUser, null, authorities);
+                            authUser, null, authorities);
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);

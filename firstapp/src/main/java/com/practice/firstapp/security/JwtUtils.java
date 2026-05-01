@@ -7,9 +7,7 @@ import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-
 import com.practice.firstapp.vo.Users;
 
 import io.jsonwebtoken.Claims;
@@ -33,9 +31,9 @@ public class JwtUtils {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
         return Jwts.builder()
-                .setSubject(user.getUsername())
-                .claim("username", user.getUsername())
-                .claim("userId", user.getId())
+                .setSubject(String.valueOf(user.getId()))
+                // .claim("username", user.getUsername())
+                // .claim("email", user.getEmail())
                 .claim("roles", roles)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 10)) // 10 min
@@ -44,34 +42,41 @@ public class JwtUtils {
     }
 
     // Validate token
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = getUsernameFromToken(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
-    }
+    // public Boolean validateToken(String token, Users user) {
+    // Long userId = getUserIdFromToken(token);
+    // return userId.equals(user.getId()) && !isTokenExpired(token);
+    // }
 
-    // Extract username from token
-    public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSecretKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
-    }
+    // Extract identifier from token
+    // public String getIdentifierFromToken(String token) {
+    // Claims claims = Jwts.parserBuilder()
+    // .setSigningKey(getSecretKey())
+    // .build()
+    // .parseClaimsJws(token)
+    // .getBody();
+    // return claims.getSubject();
+    // }
 
-    public Long getUserIdFromToken(String token) {
-        Claims claims = extractAllClaims(token);
-        Number userId = claims.get("userId", Number.class);
-        return userId != null ? userId.longValue() : null;
-    }
-
-    private Claims extractAllClaims(String token) {
+    public Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSecretKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+    public Long getUserIdFromToken(String token) {
+        Claims claims = extractAllClaims(token);
+        return Long.parseLong(claims.getSubject());
+    }
+
+    // public String extractUsername(String token) {
+    // return extractAllClaims(token).get("username", String.class);
+    // }
+
+    // public String extractEmail(String token) {
+    // return extractAllClaims(token).get("email", String.class);
+    // }
 
     public List<String> extractRoles(String token) {
         Object roles = extractAllClaims(token).get("roles");
@@ -86,11 +91,6 @@ public class JwtUtils {
 
     // Check token expiration
     public Boolean isTokenExpired(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSecretKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getExpiration().before(new Date());
+        return extractAllClaims(token).getExpiration().before(new Date());
     }
 }

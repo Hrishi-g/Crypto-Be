@@ -8,16 +8,24 @@ spring:
     name: firstapp
   config:
     import: optional:file:.env[.properties]
+  data:
+    web:
+      pageable:
+        page-serialization-mode: via-dto
 
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  servlet:
-    multipart:
-      max-file-size: 1MB
-      max-request-size: 1MB
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${OUTH_GOOGLE_CLIENT_ID}
+            client-secret: ${OUTH_GOOGLE_CLIENT_SECRET}
 
   jpa:
     show-sql: true
@@ -46,8 +54,11 @@ cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN}
 
 logging:
+  file:
+    name: logs/application.log
   level:
     root: WARN
     org.springframework: WARN
+    org.springframework.security: DEBUG
     org.hibernate: WARN
     com.practice.firstapp: WARN

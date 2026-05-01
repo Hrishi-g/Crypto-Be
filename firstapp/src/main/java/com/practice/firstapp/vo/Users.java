@@ -1,22 +1,21 @@
 package com.practice.firstapp.vo;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 
 @Entity
 public class Users implements UserDetails {
@@ -25,23 +24,27 @@ public class Users implements UserDetails {
     private Long id;
     private String firstName;
     private String lastName;
+    @Column(unique = true)
     private String username;
-    @Column(nullable = false, columnDefinition = "DECIMAL(19,2) DEFAULT 0.00")
-    private BigDecimal wallet = BigDecimal.ZERO;
+    @Column(unique = true)
     private String email;
     private String dob;
     private String password;
     private String role;
+    private String provider;
+    private String providerId;
     @CreationTimestamp
     private String crtd_dt;
     @UpdateTimestamp
     private String updt_dt;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Wallet wallet;
 
-    public BigDecimal getWallet() {
+    public Wallet getWallet() {
         return wallet;
     }
 
-    public void setWallet(BigDecimal wallet) {
+    public void setWallet(Wallet wallet) {
         this.wallet = wallet;
     }
 
@@ -124,6 +127,22 @@ public class Users implements UserDetails {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getProviderId() {
+        return providerId;
+    }
+
+    public void setProviderId(String providerId) {
+        this.providerId = providerId;
     }
 
     @Override

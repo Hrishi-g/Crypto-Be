@@ -18,10 +18,14 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.practice.firstapp.security.CsrfCookieFilter;
+import com.practice.firstapp.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.practice.firstapp.security.JwtFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 
 @Configuration
 @EnableWebSecurity
@@ -29,10 +33,15 @@ public class SecurityConfig {
 
     private JwtFilter jwtFilter;
     private CsrfCookieFilter csrfCookieFilter;
+    private OAuth2SuccessHandler oauth2SuccessHandler;
+    private HttpCookieOAuth2AuthorizationRequestRepository cookieRepository;
 
-    public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter,
+            OAuth2SuccessHandler oauth2SuccessHandler, HttpCookieOAuth2AuthorizationRequestRepository cookieRepository) {
         this.jwtFilter = jwtFilter;
         this.csrfCookieFilter = csrfCookieFilter;
+        this.oauth2SuccessHandler = oauth2SuccessHandler;
+        this.cookieRepository = cookieRepository;
     }
 
     @Bean
@@ -58,8 +67,21 @@ public class SecurityConfig {
         return source;
     }
 
+    private OAuth2AuthorizationRequestResolver authorizationRequestResolver(
+            ClientRegistrationRepository clientRegistrationRepository) {
+
+        DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver =
+                new DefaultOAuth2AuthorizationRequestResolver(
+                        clientRegistrationRepository, "/oauth2/authorization");
+        
+        authorizationRequestResolver.setAuthorizationRequestCustomizer(
+                customizer -> customizer.additionalParameters(params -> params.put("prompt", "select_account")));
+
+        return authorizationRequestResolver;
+    }
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
@@ -71,13 +93,29 @@ public class SecurityConfig {
                         .requestMatchers("/home/crypto/**").permitAll()
                         .requestMatchers("/ws/crypto/**").permitAll()
                         .requestMatchers("/auth/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/auth/refresh").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/cache/**").permitAll()
+                        .requestMatchers("/auth/logout").authenticated()
+                        .requestMatchers("/portfolio/**").authenticated()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/user/**").authenticated()
-                        // .requestMatchers("/api/**").authenticated()
-                        // .requestMatchers("/user/**").hasRole("ADMIN")
+                        .requestMatchers("/wallet/**").authenticated()
+                        .requestMatchers("/trade/**").authenticated()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(authEndpoint -> authEndpoint
+                                .authorizationRequestRepository(cookieRepository)
+                                .authorizationRequestResolver(authorizationRequestResolver(clientRegistrationRepository)))
+                        .successHandler(oauth2SuccessHandler)
+                        .failureHandler((request, response, exception) -> {
+                            System.err.println("OAuth2 Login Failed:");
+                            exception.printStackTrace();
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("text/plain");
+                            response.getWriter().write("OAuth2 Error: " + exception.getMessage());
+                        }))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             // This prevents the browser popup by sending a clean 401

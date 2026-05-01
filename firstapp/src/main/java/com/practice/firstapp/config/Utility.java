@@ -1,12 +1,10 @@
 package com.practice.firstapp.config;
 
 import java.time.Instant;
-
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import com.practice.firstapp.repo.RefreshTokenRepo;
-import com.practice.firstapp.repo.UserRepo;
 import com.practice.firstapp.vo.Refresh_token;
 import com.practice.firstapp.vo.Users;
 
@@ -18,19 +16,13 @@ import jakarta.transaction.Transactional;
 public class Utility {
 
     private RefreshTokenRepo refreshTokenRepo;
-    private UserRepo userRepo;
 
-    public Utility(RefreshTokenRepo refreshTokenRepo, UserRepo userRepo) {
+    public Utility(RefreshTokenRepo refreshTokenRepo) {
         this.refreshTokenRepo = refreshTokenRepo;
-        this.userRepo = userRepo;
     }
 
     @Transactional
-    public Refresh_token generateRefreshToken(String username) {
-        // Find user first
-        Users user = userRepo.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    public Refresh_token generateRefreshToken(Users user) {
         // Check if token already exists for this user
         Refresh_token refreshToken = refreshTokenRepo.findByUser(user).orElse(new Refresh_token());
 

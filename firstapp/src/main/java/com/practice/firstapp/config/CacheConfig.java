@@ -6,33 +6,45 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
 
-        @Bean
-        public CacheManager cacheManager() {
-                CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-                cacheManager.setAsyncCacheMode(true); // Required for Mono/Flux
+    @Bean
+    @Primary
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setAsyncCacheMode(false); 
 
-                // 5-minute cache for crypto prices to avoid 429 Too Many Requests
-                Caffeine<Object, Object> fiveMin = Caffeine.newBuilder()
-                                .recordStats()
-                                .expireAfterWrite(300, TimeUnit.SECONDS)
-                                .maximumSize(100);
+        Caffeine<Object, Object> userCache = Caffeine.newBuilder()
+                .expireAfterWrite(600, TimeUnit.SECONDS)
+                .maximumSize(200);
 
-                // 1-hour cache for historical charts (24h trend)
-                Caffeine<Object, Object> historicalCache = Caffeine.newBuilder()
-                                .recordStats()
-                                .expireAfterWrite(3600, TimeUnit.SECONDS)
-                                .maximumSize(50);
+        cacheManager.registerCustomCache("user", userCache.build());
+        cacheManager.registerCustomCache("portfolio", userCache.build());
+        return cacheManager;
+    }
 
-                // Register them separately with their own timers
-                cacheManager.registerCustomCache("crypto-data", fiveMin.buildAsync());
-                cacheManager.registerCustomCache("historical-data", historicalCache.buildAsync());
+    @Bean(name = "asyncCacheManager")
+    public CacheManager asyncCacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setAsyncCacheMode(true); 
 
-                return cacheManager;
-        }
+        Caffeine<Object, Object> fiveMin = Caffeine.newBuilder()
+                .expireAfterWrite(300, TimeUnit.SECONDS)
+                .maximumSize(100);
+
+        Caffeine<Object, Object> historicalCache = Caffeine.newBuilder()
+                .expireAfterWrite(3600, TimeUnit.SECONDS)
+                .maximumSize(50);
+
+        cacheManager.registerCustomCache("crypto-data", fiveMin.buildAsync());
+        cacheManager.registerCustomCache("historical-data", historicalCache.buildAsync());
+        cacheManager.registerCustomCache("exchange-rate", fiveMin.buildAsync());
+
+        return cacheManager;
+    }
 }

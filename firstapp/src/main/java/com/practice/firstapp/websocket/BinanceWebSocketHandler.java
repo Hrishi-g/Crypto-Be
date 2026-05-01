@@ -8,6 +8,9 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import reactor.core.Disposable;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
+import reactor.util.retry.Retry;
+import io.netty.resolver.DefaultAddressResolverGroup;
+import java.time.Duration;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BinanceWebSocketHandler extends TextWebSocketHandler {
 
     private final String BINANCE_WS_URL = "wss://stream.binance.com:9443/ws/";
-    
+
     // Track Binance connections per browser session to close them later
     private final Map<String, Disposable> binanceConnections = new ConcurrentHashMap<>();
 
@@ -34,6 +37,7 @@ public class BinanceWebSocketHandler extends TextWebSocketHandler {
         System.out.println("BRIDGE ATTEMPT: " + symbol + " -> " + binanceUrl);
 
         Disposable connection = HttpClient.create()
+                .resolver(DefaultAddressResolverGroup.INSTANCE)
                 .websocket(WebsocketClientSpec.builder().build())
                 .uri(binanceUrl)
                 .handle((inbound, outbound) -> {
@@ -52,7 +56,11 @@ public class BinanceWebSocketHandler extends TextWebSocketHandler {
                             .doOnTerminate(() -> System.out.println("Binance Stream Terminated for: " + symbol))
                             .then();
                 })
-                .doOnError(err -> System.err.println("Binance Connection FAILED for " + symbol + ": " + err.getMessage()))
+                .doOnError(
+                        err -> System.err.println("Binance Connection FAILED for " + symbol + ": " + err.getMessage()))
+                .retryWhen(Retry.backoff(10, Duration.ofSeconds(2))
+                        .doBeforeRetry(
+                                retrySignal -> System.out.println("Retrying Binance connection for " + symbol + "...")))
                 .subscribe();
 
         binanceConnections.put(session.getId(), connection);

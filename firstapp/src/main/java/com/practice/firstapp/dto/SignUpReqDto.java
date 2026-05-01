@@ -4,7 +4,6 @@ public class SignUpReqDto {
 
     private String firstName;
     private String lastName;
-    private String username;
     private String password;
     private String email;
     private String dob;
@@ -12,22 +11,13 @@ public class SignUpReqDto {
     public SignUpReqDto() {
     }
 
-    public SignUpReqDto(String username, String password, String email, String firstName,
+    public SignUpReqDto(String password, String email, String firstName,
             String lastName, String dob) {
-        this.username = username;
         this.password = password;
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
         this.dob = dob;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
     }
 
     public String getPassword() {

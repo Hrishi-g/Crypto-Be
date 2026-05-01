@@ -1,23 +1,26 @@
 package com.practice.firstapp.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 public class LoginReqDto {
-    private String username;
+    @JsonAlias({ "username", "email" })
+    private String identifier;
     private String password;
 
     public LoginReqDto() {
     }
 
-    public LoginReqDto(String username, String password) {
-        this.username = username;
+    public LoginReqDto(String identifier, String password) {
+        this.identifier = identifier;
         this.password = password;
     }
 
-    public String getUsername() {
-        return username;
+    public String getIdentifier() {
+        return identifier;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
     }
 
     public String getPassword() {
