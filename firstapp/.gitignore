@@ -59,3 +59,5 @@ LOG_FILE_IS_UNDEFINED
 TestSize.java
 deps.txt
 
+src/main/resources/logback-spring.xml
+
