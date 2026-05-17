@@ -6,8 +6,10 @@ server:
 spring:
   application:
     name: firstapp
+
   config:
     import: optional:file:.env[.properties]
+
   data:
     web:
       pageable:
@@ -37,6 +39,18 @@ spring:
         default_schema: public
     open-in-view: false
 
+  mail:
+    host: ${EMAIL_HOST}
+    port: ${EMAIL_PORT}
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.ssl.trust: ${EMAIL_HOST}
+      mail.debug: true
+
   # cache:
   #   type: caffeine
   #   cache-names: crypto-data
@@ -45,11 +59,6 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
-cloudinary:
-  cloud_name: ${CLOUDINARY_CLOUD_NAME}
-  api_key: ${CLOUDINARY_API_KEY}
-  api_secret: ${CLOUDINARY_API_SECRET}
-
 cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN}
 
@@ -57,7 +66,7 @@ logging:
   file:
     name: logs/application.log
   level:
-    root: WARN
+    root: INFO
     org.springframework: WARN
     org.springframework.security: DEBUG
     org.hibernate: WARN

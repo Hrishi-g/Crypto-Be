@@ -8,20 +8,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.practice.firstapp.dto.CryptoDto;
 import com.practice.firstapp.dto.BinanceTickerDto;
-import com.practice.firstapp.service.HomeService;
-import com.practice.firstapp.service.BinanceTopCoinService;
+import com.practice.firstapp.service.HomeCumCryptocoinService;
 import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/home/crypto")
-public class HomeController {
+public class HomeCumCryptocoinController {
 
-    private final HomeService homeService;
-    private final BinanceTopCoinService binanceTopCoinService;
+    private final HomeCumCryptocoinService homeService;
 
-    public HomeController(HomeService homeService, BinanceTopCoinService binanceTopCoinService) {
+    public HomeCumCryptocoinController(HomeCumCryptocoinService homeService) {
         this.homeService = homeService;
-        this.binanceTopCoinService = binanceTopCoinService;
     }
 
     @GetMapping("/top-crypto")
@@ -31,7 +28,7 @@ public class HomeController {
                 .header("Access-Control-Allow-Credentials", "true")
                 .header("Access-Control-Allow-Methods", "GET, OPTIONS")
                 .header("Access-Control-Allow-Headers", "*")
-                .body(binanceTopCoinService.getBinanceTopCoins());
+                .body(homeService.getBinanceTopCoins());
     }
 
     @GetMapping("/all-crypto")
@@ -67,9 +64,10 @@ public class HomeController {
 
     @GetMapping("/historical-data")
     public Mono<ResponseEntity<Object>> getHistoricalData(
-            @RequestParam String coinId,
-            @RequestParam(defaultValue = "1") int days) {
-        return homeService.getHistoricalData(coinId, days)
+            @RequestParam String symbol,
+            @RequestParam(defaultValue = "1m") String interval,
+            @RequestParam(defaultValue = "100") int limit) {
+        return homeService.getHistoricalData(symbol, interval, limit)
                 .map(data -> ResponseEntity.ok()
                         .header("Access-Control-Allow-Origin", "http://localhost:5173")
                         .header("Access-Control-Allow-Credentials", "true")

@@ -2,7 +2,6 @@ package com.practice.firstapp.dto;
 
 import java.math.BigDecimal;
 
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -12,6 +11,7 @@ public class UserProfileDto {
     private String email;
     private String dob;
     private String username;
+    private boolean hasPassword;
     private BigDecimal totalAmount;
 
     public String getUsername() {
@@ -34,6 +34,14 @@ public class UserProfileDto {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public boolean isHasPassword() {
+        return hasPassword;
+    }
+
+    public void setHasPassword(boolean hasPassword) {
+        this.hasPassword = hasPassword;
     }
 
     public String getFirstName() {

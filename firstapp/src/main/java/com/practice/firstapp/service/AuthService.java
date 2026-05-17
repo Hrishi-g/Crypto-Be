@@ -1,7 +1,9 @@
 package com.practice.firstapp.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,13 +20,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import com.practice.firstapp.config.Utility;
+import com.practice.firstapp.dto.AuthDto;
 import com.practice.firstapp.dto.LoginReqDto;
-import com.practice.firstapp.dto.PasswordResetReqDto;
 import com.practice.firstapp.dto.SignUpReqDto;
+import com.practice.firstapp.dto.UserProfileDto;
+import com.practice.firstapp.repo.ResetPassTokenRepo;
 // import com.practice.firstapp.dto.UserUpdateReqDto;
 import com.practice.firstapp.repo.UserRepo;
 import com.practice.firstapp.security.JwtUtils;
 import com.practice.firstapp.vo.Refresh_token;
+import com.practice.firstapp.vo.ResetPassToken;
 import com.practice.firstapp.vo.Users;
 import com.practice.firstapp.vo.Wallet;
 import jakarta.servlet.http.Cookie;
@@ -40,14 +45,21 @@ public class AuthService {
     private AuthenticationManager authenticationManager;
     private JwtUtils jwtUtils;
     private Utility utility;
+    private UserService userService;
+    private ResetPassTokenRepo resetPassTokenRepo;
+    private EmailService emailService;
 
     AuthService(UserRepo userRepo, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager,
-            JwtUtils jwtUtils, Utility utility) {
+            JwtUtils jwtUtils, Utility utility, UserService userService, ResetPassTokenRepo resetPassTokenRepo,
+            EmailService emailService) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.utility = utility;
+        this.userService = userService;
+        this.resetPassTokenRepo = resetPassTokenRepo;
+        this.emailService = emailService;
     }
 
     private String generateUsername(String name) {
@@ -160,24 +172,66 @@ public class AuthService {
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Logged out successfully"));
     }
 
-    // public ResponseEntity<?> setPassword(@AuthenticationPrincipal AuthDto
-    // authUser,
-    // PasswordResetReqDto passwordResetReqDto) {
-    // if (authUser.getProvider() != null && user.getPassword() == null) {
-    // if
-    // (!passwordResetReqDto.getPassword().equals(passwordResetReqDto.getConfirmPassword()))
-    // {
-    // return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message",
-    // "Passwords do not match"));
-    // }
-    // user.setPassword(passwordEncoder.encode(passwordResetReqDto.getPassword()));
-    // userRepo.save(user);
-    // return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password
-    // set successfully"));
-    // }
+    public ResponseEntity<?> PreCheck(AuthDto authUser) {
+        if (authUser != null) {
+            UserProfileDto checkedUser = userService.getUser(authUser.getId());
+            if (checkedUser != null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("authenticated", true);
+                response.put("id", authUser.getId());
+                response.put("role", authUser.getRole() != null ? authUser.getRole() : "USER");
+                response.put("username", checkedUser.getUsername());
+                response.put("hasPassword", checkedUser.isHasPassword());
+                response.put("totalAmount", checkedUser.getTotalAmount());
+                return ResponseEntity.ok(response);
+            }
+            return ResponseEntity.ok(Map.of(
+                    "authenticated", true,
+                    "id", authUser.getId(),
+                    "role", authUser.getRole() != null ? authUser.getRole() : "USER"));
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
 
-    // return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-    // .body(Map.of("message", "Password is already set"));
+    public ResponseEntity<?> sendResetLink(String email) {
+        Users user = userRepo.findByEmail(email).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "User not found"));
+        }
+        String token = UUID.randomUUID().toString();
+        LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(15);
+        ResetPassToken resetPassToken = new ResetPassToken();
+        resetPassToken.setToken(token);
+        resetPassToken.setUser(user);
+        resetPassToken.setExpiryTime(expiryTime);
+        resetPassToken.setIsUsed(false);
+        resetPassToken.setCrtd_dt(LocalDateTime.now());
+        resetPassTokenRepo.save(resetPassToken);
 
-    // }
+        emailService.sendResetMail(user.getEmail(), token);
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password reset link sent to email"));
+    }
+
+    public ResponseEntity<?> resetPassword(String token, String password) {
+        ResetPassToken resetPassToken = resetPassTokenRepo.findByToken(token).orElse(null);
+        if (resetPassToken == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Invalid token"));
+        }
+        if (Boolean.TRUE.equals(resetPassToken.getIsUsed())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Token already used"));
+        }
+        if (resetPassToken.getExpiryTime().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Token expired"));
+        }
+
+        Users user = resetPassToken.getUser();
+        user.setPassword(passwordEncoder.encode(password));
+        userRepo.save(user);
+        resetPassToken.setIsUsed(true);
+        resetPassTokenRepo.save(resetPassToken);
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password reset successful"));
+    }
 }

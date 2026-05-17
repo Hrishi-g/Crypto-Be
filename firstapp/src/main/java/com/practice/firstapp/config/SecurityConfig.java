@@ -17,6 +17,8 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import com.practice.firstapp.security.CsrfCookieFilter;
 import com.practice.firstapp.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.practice.firstapp.security.JwtFilter;
@@ -37,7 +39,8 @@ public class SecurityConfig {
     private HttpCookieOAuth2AuthorizationRequestRepository cookieRepository;
 
     public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter,
-            OAuth2SuccessHandler oauth2SuccessHandler, HttpCookieOAuth2AuthorizationRequestRepository cookieRepository) {
+            OAuth2SuccessHandler oauth2SuccessHandler,
+            HttpCookieOAuth2AuthorizationRequestRepository cookieRepository) {
         this.jwtFilter = jwtFilter;
         this.csrfCookieFilter = csrfCookieFilter;
         this.oauth2SuccessHandler = oauth2SuccessHandler;
@@ -70,10 +73,9 @@ public class SecurityConfig {
     private OAuth2AuthorizationRequestResolver authorizationRequestResolver(
             ClientRegistrationRepository clientRegistrationRepository) {
 
-        DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver =
-                new DefaultOAuth2AuthorizationRequestResolver(
-                        clientRegistrationRepository, "/oauth2/authorization");
-        
+        DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(
+                clientRegistrationRepository, "/oauth2/authorization");
+
         authorizationRequestResolver.setAuthorizationRequestCustomizer(
                 customizer -> customizer.additionalParameters(params -> params.put("prompt", "select_account")));
 
@@ -81,7 +83,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, ClientRegistrationRepository clientRegistrationRepository) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+            ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
@@ -107,7 +110,8 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authEndpoint -> authEndpoint
                                 .authorizationRequestRepository(cookieRepository)
-                                .authorizationRequestResolver(authorizationRequestResolver(clientRegistrationRepository)))
+                                .authorizationRequestResolver(
+                                        authorizationRequestResolver(clientRegistrationRepository)))
                         .successHandler(oauth2SuccessHandler)
                         .failureHandler((request, response, exception) -> {
                             System.err.println("OAuth2 Login Failed:");
@@ -136,5 +140,13 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public WebClient webClient() {
+        return WebClient.builder()
+                .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                .build();
     }
 }

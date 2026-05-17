@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +24,10 @@ public class TradeService {
     private WalletRepo walletRepo;
     private TransactionRepo transactionRepo;
     private PortFolioService profileService;
-    private HomeService homeService;
+    private HomeCumCryptocoinService homeService;
 
     public TradeService(WalletRepo walletRepo, TransactionRepo transactionRepo, PortFolioService profileService,
-            HomeService homeService) {
+            HomeCumCryptocoinService homeService) {
         this.walletRepo = walletRepo;
         this.transactionRepo = transactionRepo;
         this.profileService = profileService;
@@ -34,6 +35,7 @@ public class TradeService {
     }
 
     @Transactional
+    @CacheEvict(value = "user", key = "#request.userId", cacheManager = "cacheManager")
     public ResponseEntity<?> trade(TradeRequestDto request) {
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("Invalid purchase amount");
@@ -43,7 +45,7 @@ public class TradeService {
         try {
             Double inrRate = homeService.getUsdToInrRate().block();
             if (inrRate == null)
-                inrRate = 92.50; // Fallback
+                throw new RuntimeException("Could not fetch live USD to INR rate.");
 
             RestTemplate restTemplate = new RestTemplate();
             String symbol = request.getAsset().toUpperCase();

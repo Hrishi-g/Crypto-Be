@@ -17,7 +17,7 @@ public class CacheConfig {
     @Primary
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setAsyncCacheMode(false); 
+        cacheManager.setAsyncCacheMode(false);
 
         Caffeine<Object, Object> userCache = Caffeine.newBuilder()
                 .expireAfterWrite(600, TimeUnit.SECONDS)
@@ -31,14 +31,14 @@ public class CacheConfig {
     @Bean(name = "asyncCacheManager")
     public CacheManager asyncCacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-        cacheManager.setAsyncCacheMode(true); 
+        cacheManager.setAsyncCacheMode(true);
 
         Caffeine<Object, Object> fiveMin = Caffeine.newBuilder()
                 .expireAfterWrite(300, TimeUnit.SECONDS)
                 .maximumSize(100);
 
         Caffeine<Object, Object> historicalCache = Caffeine.newBuilder()
-                .expireAfterWrite(3600, TimeUnit.SECONDS)
+                .expireAfterWrite(900, TimeUnit.SECONDS) // last 24hrs data cache 15 min and store max 50 items
                 .maximumSize(50);
 
         cacheManager.registerCustomCache("crypto-data", fiveMin.buildAsync());

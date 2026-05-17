@@ -1,8 +1,16 @@
 package com.practice.firstapp.service;
 
+import java.util.Map;
+
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.practice.firstapp.dto.PasswordResetReqDto;
 import com.practice.firstapp.dto.UpdateUserProfile;
 import com.practice.firstapp.dto.UserProfileDto;
 import com.practice.firstapp.repo.UserRepo;
@@ -10,10 +18,13 @@ import com.practice.firstapp.vo.Users;
 
 @Service
 public class UserService {
-    private UserRepo userRepo;
 
-    public UserService(UserRepo userRepo) {
+    private UserRepo userRepo;
+    private PasswordEncoder passwordEncoder;
+
+    public UserService(UserRepo userRepo, PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Cacheable(key = "#userId", cacheNames = "user", unless = "#result == null", cacheManager = "cacheManager")
@@ -30,6 +41,7 @@ public class UserService {
         } else {
             userProfileDto.setTotalAmount(java.math.BigDecimal.ZERO);
         }
+        userProfileDto.setHasPassword(user.getPassword() != null);
         userProfileDto.setFirstName(user.getFirstName());
         userProfileDto.setLastName(user.getLastName());
         userProfileDto.setEmail(user.getEmail());
@@ -62,10 +74,24 @@ public class UserService {
         } else {
             userProfileDto.setTotalAmount(java.math.BigDecimal.ZERO);
         }
+        userProfileDto.setHasPassword(existingUser.getPassword() != null);
         userProfileDto.setFirstName(existingUser.getFirstName());
         userProfileDto.setLastName(existingUser.getLastName());
         userProfileDto.setEmail(existingUser.getEmail());
         userProfileDto.setDob(existingUser.getDob());
         return userProfileDto;
     }
+
+    @CacheEvict(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
+    public ResponseEntity<?> setPassword(Long userId, PasswordResetReqDto passwordResetReqDto) {
+        Users user = userRepo.findById(userId).orElse(null);
+        if (!passwordResetReqDto.getPassword().equals(passwordResetReqDto.getConfirmPassword())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Passwords do not match"));
+        }
+        user.setPassword(passwordEncoder.encode(passwordResetReqDto.getPassword()));
+        userRepo.save(user);
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password set successfully"));
+
+    }
+
 }
