@@ -25,7 +25,6 @@ public class TradeController {
     public ResponseEntity<?> trade(@AuthenticationPrincipal AuthDto user, @RequestBody TradeRequestDto request) {
         request.setUserId(user.getId());
         return tradeService.trade(request);
-
     }
 
 }

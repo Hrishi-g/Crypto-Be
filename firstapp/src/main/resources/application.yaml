@@ -59,6 +59,10 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
+crypto:
+  logo-dev:
+    image-token: ${CRYPTO_IMAGE_TOKEN}
+
 cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN}
 

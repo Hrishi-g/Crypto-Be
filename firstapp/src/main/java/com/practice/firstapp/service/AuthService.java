@@ -39,7 +39,6 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class AuthService {
-
     private UserRepo userRepo;
     private PasswordEncoder passwordEncoder;
     private AuthenticationManager authenticationManager;
@@ -172,26 +171,32 @@ public class AuthService {
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Logged out successfully"));
     }
 
-    public ResponseEntity<?> PreCheck(AuthDto authUser) {
+    public ResponseEntity<?> preCheck(AuthDto authUser) {
         if (authUser != null) {
+            System.out.println("preCheck user id: " + authUser.getId());
             UserProfileDto checkedUser = userService.getUser(authUser.getId());
+            System.out.println("preCheck checkedUser: " + checkedUser);
             if (checkedUser != null) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("authenticated", true);
-                response.put("id", authUser.getId());
-                response.put("role", authUser.getRole() != null ? authUser.getRole() : "USER");
-                response.put("username", checkedUser.getUsername());
-                response.put("hasPassword", checkedUser.isHasPassword());
-                response.put("totalAmount", checkedUser.getTotalAmount());
+                response.put("navAvatar",
+                        getFirstLetterUppercase(checkedUser.getUsername()));
+                response.put("hasPassword",
+                        checkedUser.isHasPassword());
                 return ResponseEntity.ok(response);
             }
-            return ResponseEntity.ok(Map.of(
-                    "authenticated", true,
-                    "id", authUser.getId(),
-                    "role", authUser.getRole() != null ? authUser.getRole() : "USER"));
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of(
+                        "authenticated", false,
+                        "message", "Unauthorized"));
+    }
+
+    public String getFirstLetterUppercase(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return "U";
+        }
+        return String.valueOf(username.trim().charAt(0)).toUpperCase();
     }
 
     public ResponseEntity<?> sendResetLink(String email) {

@@ -73,7 +73,7 @@ public class TradeService {
             }
         } catch (Exception e) {
             System.err.println("Backend Security Error: " + e.getMessage());
-            throw new RuntimeException("Pricing Oracle Failure. Cannot process securely.");
+            throw new RuntimeException("Failed to fetch live prices. Please try again later.");
         }
 
         Wallet wallet = walletRepo.findByUserId(request.getUserId())

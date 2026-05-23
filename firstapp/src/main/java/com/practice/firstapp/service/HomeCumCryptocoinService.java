@@ -13,7 +13,7 @@ import com.practice.firstapp.dto.CryptoDto;
 import com.practice.firstapp.dto.SearchResponseDto;
 
 import jakarta.annotation.PostConstruct;
-
+import org.springframework.beans.factory.annotation.Value;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -31,6 +31,9 @@ import reactor.util.retry.Retry;
 
 @Service
 public class HomeCumCryptocoinService {
+
+    @Value("${crypto.logo-dev.image-token}")
+    private String imageToken;
 
     private final WebClient webClient;
 
@@ -86,7 +89,8 @@ public class HomeCumCryptocoinService {
                         return Mono.just(List.<CryptoDto>of());
                     }
                     String idsJoined = String.join(",", ids);
-                    String marketsUrl = String.format("/coins/markets?vs_currency=inr&ids=%s&order=market_cap_desc",
+                    String marketsUrl = String.format(
+                            "https://api.coingecko.com/api/v3/coins/markets?vs_currency=inr&ids=%s&order=market_cap_desc",
                             idsJoined);
                     return webClient.get()
                             .uri(marketsUrl)
@@ -154,38 +158,26 @@ public class HomeCumCryptocoinService {
     public void fetchAndCacheTopCoins() {
         System.out.println("Fetching crypto markets to show on home page using postConstruct");
         webClient.get()
-                .uri("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1")
+                .uri("https://api.binance.com/api/v3/ticker/24hr")
                 .retrieve()
-                .bodyToFlux(CryptoDto.class)
-                .collectMap(coin -> coin.getSymbol().toUpperCase())
-                .flatMap(coinGeckoMap -> {
-                    // Fetch top volume pairs from Binance
-                    return WebClient.create().get()
-                            .uri("https://api.binance.com/api/v3/ticker/24hr")
-                            .retrieve()
-                            .bodyToFlux(BinanceTickerDto.class)
-                            .filter(ticker -> ticker.getSymbol() != null && ticker.getSymbol().endsWith("USDT"))
-                            .sort(Comparator.comparingDouble(BinanceTickerDto::getQuoteVolume).reversed())
-                            .take(12)
-                            .map(ticker -> {
-                                String baseSymbol = ticker.getSymbol().replace("USDT", "");
-                                CryptoDto cgCoin = coinGeckoMap.get(baseSymbol);
-                                if (cgCoin != null) {
-                                    ticker.setName(cgCoin.getName());
-                                    ticker.setImage(cgCoin.getImage());
-                                } else {
-                                    ticker.setName(baseSymbol);
-                                    ticker.setImage("");
-                                }
-                                return ticker;
-                            })
-                            .collectList();
+                .bodyToFlux(BinanceTickerDto.class)
+                .filter(ticker -> ticker.getSymbol() != null && ticker.getSymbol().endsWith("USDT"))
+                .sort(Comparator.comparingDouble(BinanceTickerDto::getQuoteVolume).reversed())
+                .take(12)
+                .map(ticker -> {
+                    String baseSymbol = ticker.getSymbol().replace("USDT", "");
+                    ticker.setName(baseSymbol);
+                    String formattedImageUri = "https://img.logo.dev/crypto/" + baseSymbol.toLowerCase()
+                            + "?token=" + imageToken;
+                    ticker.setImage(formattedImageUri);
+                    return ticker;
                 })
+                .collectList()
                 .subscribe(
                         top12 -> {
                             topCoinsCache.set(top12);
                             System.out.println(
-                                    "Successfully updated top 12 Binance coins cache with CoinGecko images and names.");
+                                    "Successfully updated homepage cache using pure Binance + CDN routing");
                         },
                         error -> System.err.println("Failed to fetch Top Coins data: " + error.getMessage()));
     }

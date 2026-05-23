@@ -40,7 +40,7 @@ public class AuthController {
 
     @GetMapping("/check")
     public ResponseEntity<?> PreCheck(@AuthenticationPrincipal AuthDto authUser) {
-        return authService.PreCheck(authUser);
+        return authService.preCheck(authUser);
     }
 
     @PostMapping("/logout")
