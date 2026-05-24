@@ -146,6 +146,7 @@
 					<org>hrishis-project</org>
 					<project>java-spring-boot</project>
 					<authToken>${env.SENTRY_AUTH_TOKEN}</authToken>
+					<skip>${sentry.skip}</skip>
 				</configuration>
 				<executions>
 					<execution>

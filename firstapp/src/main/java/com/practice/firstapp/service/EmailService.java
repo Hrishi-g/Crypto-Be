@@ -1,12 +1,16 @@
 package com.practice.firstapp.service;
 
 import org.springframework.stereotype.Service;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 @Service
 public class EmailService {
+
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     private JavaMailSender javaMailSender;
 
     public EmailService(JavaMailSender javaMailSender) {
@@ -15,7 +19,7 @@ public class EmailService {
 
     public void sendResetMail(String to, String token) {
 
-        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
 
         SimpleMailMessage mailMessage = new SimpleMailMessage();
         mailMessage.setTo(to);

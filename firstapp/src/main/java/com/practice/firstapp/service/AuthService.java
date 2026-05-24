@@ -75,7 +75,8 @@ public class AuthService {
     public ResponseEntity<?> SignUp(@Validated SignUpReqDto signUpReqDto) {
         Users existingUser = userRepo.findByEmail(signUpReqDto.getEmail()).orElse(null);
         if (existingUser != null) {
-            throw new UserAlreadyExistsException("User already exists, Use different email or signIn with your google account");
+            throw new UserAlreadyExistsException(
+                    "User already exists, Use different email or signIn with your google account");
         }
         Users newUser = new Users();
         newUser.setFirstName(signUpReqDto.getFirstName());
@@ -139,6 +140,7 @@ public class AuthService {
                         getFirstLetterUppercase(checkedUser.getUsername()));
                 response.put("hasPassword",
                         checkedUser.isHasPassword());
+                response.put("totalAmount", checkedUser.getTotalAmountPlain());
                 return ResponseEntity.ok(response);
             }
         }

@@ -12,11 +12,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Base64;
 import java.util.Optional;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import java.util.List;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.Module;
-import org.springframework.security.jackson2.SecurityJackson2Modules;
 
 @Component
 public class HttpCookieOAuth2AuthorizationRequestRepository
@@ -27,14 +31,6 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     public static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
     private static final int cookieExpireSeconds = 180;
-
-    private final ObjectMapper objectMapper;
-
-    public HttpCookieOAuth2AuthorizationRequestRepository() {
-        this.objectMapper = new ObjectMapper();
-        List<Module> modules = SecurityJackson2Modules.getModules(getClass().getClassLoader());
-        this.objectMapper.registerModules(modules);
-    }
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -106,10 +102,14 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     }
 
     private String serialize(Object object) {
-        try {
-            byte[] bytes = objectMapper.writeValueAsBytes(object);
-            return Base64.getUrlEncoder().encodeToString(bytes);
-        } catch (Exception e) {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             GZIPOutputStream gos = new GZIPOutputStream(bos);
+             ObjectOutputStream oos = new ObjectOutputStream(gos)) {
+            oos.writeObject(object);
+            oos.flush();
+            gos.close();
+            return Base64.getUrlEncoder().encodeToString(bos.toByteArray());
+        } catch (IOException e) {
             throw new IllegalArgumentException("Failed to serialize object", e);
         }
     }
@@ -117,10 +117,44 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     private <T> T deserialize(Cookie cookie, Class<T> cls) {
         try {
             byte[] decodedBytes = Base64.getUrlDecoder().decode(cookie.getValue());
-            return objectMapper.readValue(decodedBytes, cls);
+            try (ByteArrayInputStream bis = new ByteArrayInputStream(decodedBytes);
+                 GZIPInputStream gis = new GZIPInputStream(bis);
+                 SafeObjectInputStream ois = new SafeObjectInputStream(gis)) {
+                Object obj = ois.readObject();
+                return cls.cast(obj);
+            }
         } catch (Exception e) {
             log.error("Deserialization failed for cookie: {}", cookie.getValue(), e);
             return null;
+        }
+    }
+
+    private static class SafeObjectInputStream extends ObjectInputStream {
+        private static final List<String> ALLOWED_PREFIXES = List.of(
+            "org.springframework.security.oauth2.",
+            "java.lang.",
+            "java.util.",
+            "java.time."
+        );
+
+        public SafeObjectInputStream(java.io.InputStream in) throws IOException {
+            super(in);
+        }
+
+        @Override
+        protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+            String className = desc.getName();
+            boolean allowed = false;
+            for (String prefix : ALLOWED_PREFIXES) {
+                if (className.startsWith(prefix)) {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed) {
+                throw new SecurityException("Deserialization of class " + className + " is blocked for security reasons.");
+            }
+            return super.resolveClass(desc);
         }
     }
 }

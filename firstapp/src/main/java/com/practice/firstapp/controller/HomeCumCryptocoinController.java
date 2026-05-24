@@ -1,6 +1,7 @@
 package com.practice.firstapp.controller;
 
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,9 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/home/crypto")
 public class HomeCumCryptocoinController {
 
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     private final HomeCumCryptocoinService homeService;
 
     public HomeCumCryptocoinController(HomeCumCryptocoinService homeService) {
@@ -23,12 +27,7 @@ public class HomeCumCryptocoinController {
 
     @GetMapping("/top-crypto")
     public ResponseEntity<List<BinanceTickerDto>> getBinanceTopCoins() {
-        return ResponseEntity.ok()
-                .header("Access-Control-Allow-Origin", "http://localhost:5173")
-                .header("Access-Control-Allow-Credentials", "true")
-                .header("Access-Control-Allow-Methods", "GET, OPTIONS")
-                .header("Access-Control-Allow-Headers", "*")
-                .body(homeService.getBinanceTopCoins());
+        return ResponseEntity.ok(homeService.getBinanceTopCoins());
     }
 
     @GetMapping("/all-crypto")
@@ -38,26 +37,25 @@ public class HomeCumCryptocoinController {
             @RequestParam(required = false) String query) {
 
         Mono<List<CryptoDto>> dataMono;
-
         if (query != null && !query.isEmpty()) {
             dataMono = homeService.searchCrypto(query);
         } else {
             dataMono = homeService.getAllCrptoData(page, perPage);
         }
-
         return dataMono.map(data -> ResponseEntity.ok()
-                .header("Access-Control-Allow-Origin", "http://localhost:5173")
+                .header("Access-Control-Allow-Origin", frontendUrl)
                 .header("Access-Control-Allow-Credentials", "true")
                 .header("Access-Control-Allow-Methods", "GET, OPTIONS")
                 .header("Access-Control-Allow-Headers", "*")
                 .body(data));
+
     }
 
     @GetMapping("/exchange-rate")
     public Mono<ResponseEntity<Double>> getExchangeRate() {
         return homeService.getUsdToInrRate()
                 .map(rate -> ResponseEntity.ok()
-                        .header("Access-Control-Allow-Origin", "http://localhost:5173")
+                        .header("Access-Control-Allow-Origin", frontendUrl)
                         .header("Access-Control-Allow-Credentials", "true")
                         .body(rate));
     }
@@ -69,7 +67,7 @@ public class HomeCumCryptocoinController {
             @RequestParam(defaultValue = "100") int limit) {
         return homeService.getHistoricalData(symbol, interval, limit)
                 .map(data -> ResponseEntity.ok()
-                        .header("Access-Control-Allow-Origin", "http://localhost:5173")
+                        .header("Access-Control-Allow-Origin", frontendUrl)
                         .header("Access-Control-Allow-Credentials", "true")
                         .body(data));
     }

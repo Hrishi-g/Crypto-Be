@@ -3,6 +3,7 @@ package com.practice.firstapp.config;
 import java.io.IOException;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -21,6 +22,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     private final UserRepo userRepo;
     private final JwtUtils jwtUtils;
@@ -90,7 +94,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         cookieRepository.removeAuthorizationRequestCookies(request, response);
 
         // 🔥 Redirect to frontend
-        response.sendRedirect("http://localhost:5173/");
+        response.sendRedirect(frontendUrl + "/");
     }
 
     private String generateUsername(String name) {

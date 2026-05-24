@@ -8,7 +8,6 @@ import com.practice.firstapp.dto.AuthDto;
 import com.practice.firstapp.dto.LoginReqDto;
 import com.practice.firstapp.dto.SignUpReqDto;
 import com.practice.firstapp.service.AuthService;
-import com.practice.firstapp.config.SingletonLogger;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

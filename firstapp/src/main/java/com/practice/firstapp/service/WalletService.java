@@ -3,7 +3,6 @@ package com.practice.firstapp.service;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-import com.practice.firstapp.config.SingletonLogger;
 import com.practice.firstapp.exception.ResourceNotFoundException;
 import com.practice.firstapp.exception.InsufficientBalanceException;
 import com.practice.firstapp.exception.InvalidAmountException;
@@ -27,8 +26,6 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class WalletService {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private WalletRepo walletRepo;
     private TransactionRepo transactionRepo;
@@ -114,7 +111,8 @@ public class WalletService {
     @CacheEvict(value = "user", key = "#userId", cacheManager = "cacheManager")
     public void approveTransaction(Long userId, String referenceId) {
         Transaction txn = transactionRepo.findByReferenceId(referenceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found for reference ID: " + referenceId));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Transaction not found for reference ID: " + referenceId));
 
         if (txn.getStatus() != TransactionStatus.PENDING) {
             throw new BadRequestException("Transaction is not in PENDING state");

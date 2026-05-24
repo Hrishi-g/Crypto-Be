@@ -3,6 +3,7 @@ package com.practice.firstapp.config;
 import java.time.Instant;
 import com.practice.firstapp.exception.InvalidTokenException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,9 @@ public class Utility {
     private static final SingletonLogger log = SingletonLogger.log();
 
     private RefreshTokenRepo refreshTokenRepo;
+
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
 
     public Utility(RefreshTokenRepo refreshTokenRepo) {
         this.refreshTokenRepo = refreshTokenRepo;
@@ -43,7 +47,7 @@ public class Utility {
         ResponseCookie cookie = ResponseCookie.from("jwt_token", jwtToken)
                 .path("/")
                 .httpOnly(true)
-                .secure(false) // Set to true only for HTTPS/AWS
+                .secure(cookieSecure) // Set dynamically based on environment
                 .sameSite("Lax") // This fixes the cross-site block you saw in the UI
                 .maxAge(3600)
                 .build();
@@ -54,7 +58,7 @@ public class Utility {
         ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken)
                 .path("/")
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure) // Set dynamically based on environment
                 .sameSite("Lax")
                 .maxAge(7 * 24 * 60 * 60) // 7 days
                 .build();
@@ -79,7 +83,7 @@ public class Utility {
         return ResponseCookie.from(name, "")
                 .path("/")
                 .httpOnly(true)
-                .secure(false) // Must match secure(false) of original cookies to delete them successfully
+                .secure(cookieSecure) // Must match the secure flag of the original cookie to delete it
                 .sameSite("Lax")
                 .maxAge(0)
                 .build();
@@ -91,8 +95,8 @@ public class Utility {
         cookie.setHttpOnly(true);
         // Setting Max-Age to 0 instructs the browser to delete the cookie immediately
         cookie.setMaxAge(0);
-        // Secure=true is required if you deploy to AWS or Render with HTTPS
-        cookie.setSecure(false);
+        // Set dynamically based on environment
+        cookie.setSecure(cookieSecure);
         return cookie;
     }
 

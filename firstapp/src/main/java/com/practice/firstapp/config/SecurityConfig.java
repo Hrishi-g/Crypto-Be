@@ -19,7 +19,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import com.practice.firstapp.config.SingletonLogger;
 import com.practice.firstapp.security.CsrfCookieFilter;
 import com.practice.firstapp.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.practice.firstapp.security.JwtFilter;
@@ -53,21 +52,29 @@ public class SecurityConfig {
         @Bean
         public CsrfTokenRequestAttributeHandler requestHandler() {
                 CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-                // This is key: by setting this to null, Spring Security will automatically
-                // look for the header named "X-XSRF-TOKEN"
                 requestHandler.setCsrfRequestAttributeName(null);
                 return requestHandler;
         }
 
-        @Bean
+        // Not a @Bean — only used by Spring Security's CorsFilter to avoid duplicate headers
         public CorsConfigurationSource corsConfigurationSource() {
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 CorsConfiguration config = new CorsConfiguration();
                 config.setAllowCredentials(true);
                 config.setAllowedOriginPatterns(
-                                List.of("http://localhost:[*]", "http://127.0.0.1:[*]", "http://localhost:5173"));
+                                List.of("http://localhost:[*]", "https://localhost:[*]",
+                                                "http://*.vercel.app", "https://*.vercel.app",
+                                                "http://127.0.0.1:[*]", "https://127.0.0.1:[*]",
+                                                "http://localhost:5173"));
                 config.setAllowedHeaders(List.of("*"));
-                config.setAllowedMethods(List.of("*"));
+                config.setExposedHeaders(List.of("*"));
+                config.setAllowedMethods(
+                                List.of(
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "DELETE",
+                                                "OPTIONS"));
                 config.setMaxAge(3600L);
                 source.registerCorsConfiguration("/**", config);
                 return source;
@@ -119,7 +126,8 @@ public class SecurityConfig {
                                                                                                 clientRegistrationRepository)))
                                                 .successHandler(oauth2SuccessHandler)
                                                 .failureHandler((request, response, exception) -> {
-                                                        log.error("OAuth2 Login Failed: {}", exception.getMessage(), exception);
+                                                        log.error("OAuth2 Login Failed: {}", exception.getMessage(),
+                                                                        exception);
                                                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                                                         response.setContentType("text/plain");
                                                         response.getWriter().write(
