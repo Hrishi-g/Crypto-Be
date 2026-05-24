@@ -4,6 +4,12 @@ import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
+import com.practice.firstapp.config.SingletonLogger;
+import com.practice.firstapp.exception.ResourceNotFoundException;
+import com.practice.firstapp.exception.InsufficientBalanceException;
+import com.practice.firstapp.exception.InvalidAmountException;
+import com.practice.firstapp.exception.ExternalServiceException;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -20,6 +26,8 @@ import com.practice.firstapp.vo.enums.TransactionType;
 
 @Service
 public class TradeService {
+
+    private static final SingletonLogger log = SingletonLogger.log();
 
     private WalletRepo walletRepo;
     private TransactionRepo transactionRepo;
@@ -38,14 +46,14 @@ public class TradeService {
     @CacheEvict(value = "user", key = "#request.userId", cacheManager = "cacheManager")
     public ResponseEntity<?> trade(TradeRequestDto request) {
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Invalid purchase amount");
+            throw new InvalidAmountException("Invalid purchase amount");
         }
 
         // --- BACKEND SECURITY: FETCH LIVE PRICE DYNAMICALLY ---
         try {
             Double inrRate = homeService.getUsdToInrRate().block();
             if (inrRate == null)
-                throw new RuntimeException("Could not fetch live USD to INR rate.");
+                throw new ExternalServiceException("Could not fetch live USD to INR rate.");
 
             RestTemplate restTemplate = new RestTemplate();
             String symbol = request.getAsset().toUpperCase();
@@ -69,21 +77,21 @@ public class TradeService {
                 request.setPrice(liveInrPrice);
                 request.setQuantity(secureQuantity);
             } else {
-                throw new RuntimeException("Could not verify live asset price securely.");
+                throw new ExternalServiceException("Could not verify live asset price securely.");
             }
         } catch (Exception e) {
-            System.err.println("Backend Security Error: " + e.getMessage());
-            throw new RuntimeException("Failed to fetch live prices. Please try again later.");
+            log.error("Backend Security Error fetching live prices: {}", e.getMessage(), e);
+            throw new ExternalServiceException("Failed to fetch live prices. Please try again later.", e);
         }
 
         Wallet wallet = walletRepo.findByUserId(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
         BigDecimal totalAmount = request.getAmount();
         Transaction txn = new Transaction();
         if (request.getType() == TransactionType.BUY) {
             // 🔴 Check balance
             if (wallet.getBalance().compareTo(totalAmount) < 0) {
-                throw new RuntimeException("Insufficient balance");
+                throw new InsufficientBalanceException("Insufficient balance");
             }
             // 🔴 Deduct money
             txn.setDescription(

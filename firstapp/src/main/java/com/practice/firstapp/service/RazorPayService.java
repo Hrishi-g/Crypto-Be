@@ -3,6 +3,8 @@ package com.practice.firstapp.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.practice.firstapp.config.SingletonLogger;
+
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import com.razorpay.RazorpayException;
 
 @Service
 public class RazorPayService {
+
+    private static final SingletonLogger log = SingletonLogger.log();
 
     @Value("${rayzorpay.api-key}")
     private String apiKey;
@@ -46,7 +50,7 @@ public class RazorPayService {
 
             return com.razorpay.Utils.verifyPaymentSignature(options, keySecret);
         } catch (RazorpayException e) {
-            System.err.println("RazorPay signature verification error: " + e.getMessage());
+            log.error("RazorPay signature verification error: {}", e.getMessage(), e);
             return false;
         }
     }

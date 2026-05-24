@@ -2,6 +2,10 @@ server:
   port: 8080
   tomcat:
     max-swallow-size: -1
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
 
 spring:
   application:
@@ -32,7 +36,7 @@ spring:
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -79,3 +83,7 @@ logging:
     org.springframework.security: DEBUG
     org.hibernate: WARN
     com.practice.firstapp: WARN
+sentry:
+  dsn: ${SENTRY_DSN_KEY}
+  send-default-pii: true
+  auth-token: ${SENTRY_AUTH_TOKEN}

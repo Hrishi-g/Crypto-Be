@@ -1,6 +1,8 @@
 package com.practice.firstapp.config;
 
 import java.time.Instant;
+import com.practice.firstapp.exception.InvalidTokenException;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
@@ -14,6 +16,8 @@ import jakarta.transaction.Transactional;
 
 @Component
 public class Utility {
+
+    private static final SingletonLogger log = SingletonLogger.log();
 
     private RefreshTokenRepo refreshTokenRepo;
 
@@ -60,7 +64,7 @@ public class Utility {
     public Refresh_token validateRefreshToken(Refresh_token token) {
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
             refreshTokenRepo.delete(token);
-            throw new RuntimeException("Refresh token expired. Please log in again.");
+            throw new InvalidTokenException("Refresh token expired. Please log in again.");
         }
         return token;
     }
@@ -72,10 +76,10 @@ public class Utility {
     }
 
     public ResponseCookie createCleanResponseCookie(String name) {
-        return ResponseCookie.from(name, null)
+        return ResponseCookie.from(name, "")
                 .path("/")
                 .httpOnly(true)
-                .secure(true)
+                .secure(false) // Must match secure(false) of original cookies to delete them successfully
                 .sameSite("Lax")
                 .maxAge(0)
                 .build();
@@ -97,10 +101,10 @@ public class Utility {
         try {
             // This removes the specific session record from PostgreSQL
             refreshTokenRepo.deleteByToken(token);
-            System.out.println("Refresh token successfully removed from DB");
+            log.info("Refresh token successfully removed from DB");
         } catch (Exception e) {
             // Log the error but allow the logout process to continue
-            System.err.println("Error deleting token from DB: " + e.getMessage());
+            log.error("Error deleting token from DB: {}", e.getMessage(), e);
         }
     }
 }

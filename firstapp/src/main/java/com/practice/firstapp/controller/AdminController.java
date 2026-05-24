@@ -1,35 +1,39 @@
-package com.practice.firstapp.controller;
+// package com.practice.firstapp.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
+// import org.springframework.http.ResponseEntity;
+// import org.springframework.web.bind.annotation.GetMapping;
 // import org.springframework.web.bind.annotation.PathVariable;
 // import org.springframework.web.bind.annotation.PutMapping;
 // import org.springframework.web.bind.annotation.RequestBody;
 // import com.practice.firstapp.dto.UserUpdateReqDto;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import com.practice.firstapp.service.AuthService;
+// import org.springframework.web.bind.annotation.RequestMapping;
+// import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping("/auth/admin")
-public class AdminController {
+// import com.practice.firstapp.service.AdminService;
+// import com.practice.firstapp.service.AuthService;
 
-    private AuthService authService;
+// @RestController
+// @RequestMapping("/auth/admin")
+// public class AdminController {
 
-    public AdminController(AuthService authService) {
-        this.authService = authService;
-    }
+// private AdminService adminService;
+// private AuthService authService;
 
-    // @PutMapping("/users/{userId}")
-    // public ResponseEntity<?> updateUser(
-    // @PathVariable Long userId,
-    // @RequestBody UserUpdateReqDto updateReq) {
+// public AdminController(AdminService adminService, AuthService authService) {
+// this.adminService = adminService;
+// this.authService = authService;
+// }
 
-    // return authService.updateUserAsAdmin(userId, updateReq);
-    // }
+// @PutMapping("/users/{userId}")
+// public ResponseEntity<?> updateUser(
+// @PathVariable Long userId,
+// @RequestBody UserUpdateReqDto updateReq) {
 
-    @GetMapping("/users")
-    public ResponseEntity<?> getAllUsers() {
-        return authService.getAllUsers();
-    }
-}
+// return adminService.updateUserAsAdmin(userId, updateReq);
+// }
+
+// @GetMapping("/users")
+// public ResponseEntity<?> getAllUsers() {
+// return authService.getAllUsers();
+// }
+// }

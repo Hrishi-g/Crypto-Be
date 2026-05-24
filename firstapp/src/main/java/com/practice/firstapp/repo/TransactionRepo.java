@@ -16,7 +16,7 @@ public interface TransactionRepo extends JpaRepository<Transaction, Long> {
 
     Optional<Transaction> findByReferenceId(String referenceId);
 
-    @Query("SELECT new com.practice.firstapp.dto.TransactionHistory(t.type, t.asset, t.createdAt, t.quantity, t.price, t.amount, t.balanceAfter) "
+    @Query("SELECT new com.practice.firstapp.dto.TransactionHistory(t.type, t.asset, t.createdAt, t.quantity, t.price, t.amount, t.balanceAfter, t.status) "
             + "FROM Transaction t "
             + "WHERE t.wallet.user.id = :userId "
             + "ORDER BY t.createdAt DESC")

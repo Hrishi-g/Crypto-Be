@@ -2,6 +2,7 @@ package com.practice.firstapp.security;
 
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import com.practice.firstapp.config.SingletonLogger;
 import org.springframework.stereotype.Component;
 
 import org.springframework.util.StringUtils;
@@ -11,21 +12,29 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Base64;
 import java.util.Optional;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
+import java.util.List;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.Module;
+import org.springframework.security.jackson2.SecurityJackson2Modules;
 
 @Component
 public class HttpCookieOAuth2AuthorizationRequestRepository
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
+    private static final SingletonLogger log = SingletonLogger.log();
+
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     public static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
     private static final int cookieExpireSeconds = 180;
+
+    private final ObjectMapper objectMapper;
+
+    public HttpCookieOAuth2AuthorizationRequestRepository() {
+        this.objectMapper = new ObjectMapper();
+        List<Module> modules = SecurityJackson2Modules.getModules(getClass().getClassLoader());
+        this.objectMapper.registerModules(modules);
+    }
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -97,14 +106,10 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     }
 
     private String serialize(Object object) {
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             GZIPOutputStream gos = new GZIPOutputStream(bos);
-             ObjectOutputStream oos = new ObjectOutputStream(gos)) {
-            oos.writeObject(object);
-            oos.flush();
-            gos.close();
-            return Base64.getUrlEncoder().encodeToString(bos.toByteArray());
-        } catch (IOException e) {
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(object);
+            return Base64.getUrlEncoder().encodeToString(bytes);
+        } catch (Exception e) {
             throw new IllegalArgumentException("Failed to serialize object", e);
         }
     }
@@ -112,15 +117,9 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     private <T> T deserialize(Cookie cookie, Class<T> cls) {
         try {
             byte[] decodedBytes = Base64.getUrlDecoder().decode(cookie.getValue());
-            try (ByteArrayInputStream bis = new ByteArrayInputStream(decodedBytes);
-                 GZIPInputStream gis = new GZIPInputStream(bis);
-                 ObjectInputStream ois = new ObjectInputStream(gis)) {
-                Object obj = ois.readObject();
-                return cls.cast(obj);
-            }
+            return objectMapper.readValue(decodedBytes, cls);
         } catch (Exception e) {
-            System.err.println("Deserialization failed for cookie: " + cookie.getValue());
-            e.printStackTrace();
+            log.error("Deserialization failed for cookie: {}", cookie.getValue(), e);
             return null;
         }
     }

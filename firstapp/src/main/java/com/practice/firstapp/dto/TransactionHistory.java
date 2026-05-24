@@ -6,6 +6,8 @@ import com.practice.firstapp.vo.enums.TransactionType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.practice.firstapp.vo.enums.TransactionStatus;
+
 public class TransactionHistory {
     private TransactionType type;
     private String asset;
@@ -16,10 +18,11 @@ public class TransactionHistory {
 
     private BigDecimal amount;
     private BigDecimal balanceAfter;
+    private TransactionStatus status;
 
     public TransactionHistory(TransactionType type, String asset, LocalDateTime createdAt, BigDecimal quantity,
             BigDecimal price,
-            BigDecimal amount, BigDecimal balanceAfter) {
+            BigDecimal amount, BigDecimal balanceAfter, TransactionStatus status) {
         this.type = type;
         this.asset = asset;
         this.createdAt = createdAt;
@@ -27,6 +30,7 @@ public class TransactionHistory {
         this.price = price;
         this.amount = amount;
         this.balanceAfter = balanceAfter;
+        this.status = status;
     }
 
     public TransactionType getType() {
@@ -109,4 +113,11 @@ public class TransactionHistory {
         this.balanceAfter = balanceAfter;
     }
 
+    public TransactionStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(TransactionStatus status) {
+        this.status = status;
+    }
 }

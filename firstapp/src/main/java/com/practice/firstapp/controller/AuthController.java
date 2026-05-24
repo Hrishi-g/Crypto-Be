@@ -8,6 +8,7 @@ import com.practice.firstapp.dto.AuthDto;
 import com.practice.firstapp.dto.LoginReqDto;
 import com.practice.firstapp.dto.SignUpReqDto;
 import com.practice.firstapp.service.AuthService;
+import com.practice.firstapp.config.SingletonLogger;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,16 +44,13 @@ public class AuthController {
         return authService.preCheck(authUser);
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser(@AuthenticationPrincipal AuthDto user, HttpServletRequest request,
-            HttpServletResponse response) {
-        Long userId = user.getId();
-        return authService.LogOut(userId, request, response);
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+        return authService.refreshToken(request, response);
     }
 
     @PostMapping("/send-reset-password-link")
     public ResponseEntity<?> sendResetLink(@RequestBody String email) {
-        System.out.println("resetPassword" + email);
         return authService.sendResetLink(email);
     }
 

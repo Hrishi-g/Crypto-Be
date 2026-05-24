@@ -2,6 +2,8 @@ package com.practice.firstapp.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import com.practice.firstapp.config.SingletonLogger;
+
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+    private static final SingletonLogger log = SingletonLogger.log();
+
     private JwtUtils jwtUtils;
 
     public JwtFilter(JwtUtils jwtUtils) {
@@ -33,7 +37,7 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        System.out.println("Filter triggered for URL: " + request.getRequestURI());
+        log.debug("Filter triggered for URL: {}", request.getRequestURI());
 
         String token = null;
         if (request.getCookies() != null) {
@@ -73,10 +77,10 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         } catch (ExpiredJwtException e) {
             // Log the expiration and continue the filter chain
-            System.out.println("JWT Token has expired: " + e.getMessage());
+            log.warn("JWT Token has expired: {}", e.getMessage());
         } catch (JwtException | IllegalArgumentException e) {
             // Handle other JWT-related errors (invalid signature, malformed token)
-            System.out.println("JWT validation failed: " + e.getMessage());
+            log.error("JWT validation failed: {}", e.getMessage(), e);
         }
 
         // Crucial: This must be outside the catch block so the request isn't dropped

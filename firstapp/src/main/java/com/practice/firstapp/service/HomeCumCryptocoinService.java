@@ -3,6 +3,9 @@ package com.practice.firstapp.service;
 import java.time.Duration;
 import java.util.List;
 
+import com.practice.firstapp.config.SingletonLogger;
+import com.practice.firstapp.exception.ExternalServiceException;
+
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,8 @@ import reactor.util.retry.Retry;
 @Service
 public class HomeCumCryptocoinService {
 
+    private static final SingletonLogger log = SingletonLogger.log();
+
     @Value("${crypto.logo-dev.image-token}")
     private String imageToken;
 
@@ -46,7 +51,7 @@ public class HomeCumCryptocoinService {
 
     @Cacheable(value = "crypto-data", key = "'all-crypto-page-' + #page + '-size-' + #perPage", cacheManager = "asyncCacheManager")
     public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
-        System.out.println("Fetching real crypto data from CoinGecko (Page: " + page + ", Size: " + perPage + ")...");
+        log.info("Fetching real crypto data from CoinGecko (Page: {}, Size: {})...", page, perPage);
         String url = String.format(
                 "https://api.coingecko.com/api/v3/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=%d&page=%d",
                 perPage,
@@ -58,18 +63,17 @@ public class HomeCumCryptocoinService {
                 .collectList()
                 .timeout(Duration.ofSeconds(10))
                 .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)))
-                .doOnSuccess(list -> System.out
-                        .println("Successfully fetched " + (list != null ? list.size() : 0) + " coins"))
-                .doOnError(error -> System.err.println("CoinGecko API Error: " + error.getMessage()))
+                .doOnSuccess(list -> log.info("Successfully fetched {} coins", list != null ? list.size() : 0))
+                .doOnError(error -> log.error("CoinGecko API Error: {}", error.getMessage(), error))
                 .onErrorResume(error -> {
-                    System.out.println("Falling back to empty list due to API error");
+                    log.warn("Falling back to empty list due to API error");
                     return Mono.just(List.of());
                 });
     }
 
     @Cacheable(value = "crypto-data", key = "'search-' + #query", cacheManager = "asyncCacheManager")
     public Mono<List<CryptoDto>> searchCrypto(String query) {
-        System.out.println("Searching for crypto with query: " + query);
+        log.info("Searching for crypto with query: {}", query);
         String searchUrl = "https://api.coingecko.com/api/v3/search?query=" + query;
         return webClient.get()
                 .uri(searchUrl)
@@ -82,9 +86,9 @@ public class HomeCumCryptocoinService {
                     }
                     // Get top 10 matching coin IDs
                     List<String> ids = searchResponse.getCoins().stream()
-                            .limit(10)
-                            .map(SearchResponseDto.SearchCoinDto::getId)
-                            .toList();
+                             .limit(10)
+                             .map(SearchResponseDto.SearchCoinDto::getId)
+                             .toList();
                     if (ids.isEmpty()) {
                         return Mono.just(List.<CryptoDto>of());
                     }
@@ -100,7 +104,7 @@ public class HomeCumCryptocoinService {
                 })
                 .timeout(Duration.ofSeconds(15))
                 .onErrorResume(error -> {
-                    System.err.println("Search/Markets Error: " + error.getMessage());
+                    log.error("Search/Markets Error: {}", error.getMessage(), error);
                     return Mono.just(List.of());
                 });
     }
@@ -118,11 +122,11 @@ public class HomeCumCryptocoinService {
                         JsonNode json = mapper.readTree(response);
                         return json.get("rate").asDouble();
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        throw new ExternalServiceException("Failed to read exchange rate payload", e);
                     }
                 })
                 .onErrorResume(ex -> {
-                    ex.printStackTrace();
+                    log.error("Error fetching USD to INR exchange rate: {}", ex.getMessage(), ex);
                     return Mono.just(95.00);
                 });
     }
@@ -144,7 +148,7 @@ public class HomeCumCryptocoinService {
                 })
                 .timeout(Duration.ofSeconds(15))
                 .onErrorResume(error -> {
-                    System.out.println("Historical Data Error: " + error.getMessage());
+                    log.error("Historical Data Error: {}", error.getMessage(), error);
                     Map<String, Object> errorMap = new HashMap<>();
                     errorMap.put("tickerData", null);
                     errorMap.put("timestamp", istTime);
@@ -156,7 +160,7 @@ public class HomeCumCryptocoinService {
     @PostConstruct // Runs immediately when the app starts so the cache is never empty
     @Scheduled(fixedRate = 3600000) // Runs every 1 hour (3,600,000 milliseconds)
     public void fetchAndCacheTopCoins() {
-        System.out.println("Fetching crypto markets to show on home page using postConstruct");
+        log.info("Fetching crypto markets to show on home page using postConstruct");
         webClient.get()
                 .uri("https://api.binance.com/api/v3/ticker/24hr")
                 .retrieve()
@@ -176,10 +180,9 @@ public class HomeCumCryptocoinService {
                 .subscribe(
                         top12 -> {
                             topCoinsCache.set(top12);
-                            System.out.println(
-                                    "Successfully updated homepage cache using pure Binance + CDN routing");
+                            log.info("Successfully updated homepage cache using pure Binance + CDN routing");
                         },
-                        error -> System.err.println("Failed to fetch Top Coins data: " + error.getMessage()));
+                        error -> log.error("Failed to fetch Top Coins data: {}", error.getMessage(), error));
     }
 
     public List<BinanceTickerDto> getBinanceTopCoins() {

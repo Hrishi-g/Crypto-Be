@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
+import com.practice.firstapp.config.SingletonLogger;
+import com.practice.firstapp.exception.ResourceNotFoundException;
+import com.practice.firstapp.exception.InsufficientBalanceException;
+
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 
@@ -19,6 +23,8 @@ import com.practice.firstapp.vo.Portfolio;
 @Service
 public class PortFolioService {
 
+    private static final SingletonLogger log = SingletonLogger.log();
+
     private PortfolioRepo portfolioRepo;
     private UserRepo userRepo;
 
@@ -29,7 +35,7 @@ public class PortFolioService {
 
     @Cacheable(key = "#userId", cacheNames = "portfolio", cacheManager = "cacheManager")
     public List<PortfolioDto> getPortfolio(Long userId) {
-        System.out.println("DEBUG: PortFolioService.getPortfolio called for ID: " + userId + " (Cache MISS)");
+        log.debug("PortFolioService.getPortfolio called for ID: {} (Cache MISS)", userId);
         return portfolioRepo.findByUserId(userId);
     }
 
@@ -69,7 +75,7 @@ public class PortFolioService {
     public List<PortfolioDto> updatePortfolioSell(TradeRequestDto request) {
         Portfolio portfolio = portfolioRepo
                 .findByUserIdAndAsset(request.getUserId(), request.getAsset())
-                .orElseThrow(() -> new RuntimeException("Asset not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
         BigDecimal newQty = portfolio.getQuantity().subtract(request.getQuantity());
         if (newQty.compareTo(BigDecimal.ZERO) == 0) {
             // optional: delete row if fully sold
@@ -85,9 +91,9 @@ public class PortFolioService {
     public void validateSell(TradeRequestDto request) {
         Portfolio portfolio = portfolioRepo
                 .findByUserIdAndAsset(request.getUserId(), request.getAsset())
-                .orElseThrow(() -> new RuntimeException("Asset not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
         if (portfolio.getQuantity().compareTo(request.getQuantity()) < 0) {
-            throw new RuntimeException("Not enough asset to sell");
+            throw new InsufficientBalanceException("Not enough asset to sell");
         }
     }
 

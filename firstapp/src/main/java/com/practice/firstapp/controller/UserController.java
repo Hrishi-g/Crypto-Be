@@ -15,6 +15,9 @@ import com.practice.firstapp.dto.UpdateUserProfile;
 import com.practice.firstapp.dto.UserProfileDto;
 import com.practice.firstapp.service.UserService;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -36,6 +39,13 @@ public class UserController {
             @RequestBody UpdateUserProfile updateReq) {
         Long userId = user.getId();
         return ResponseEntity.ok(userService.updateProfile(userId, updateReq));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logoutUser(@AuthenticationPrincipal AuthDto user, HttpServletRequest request,
+            HttpServletResponse response) {
+        Long userId = user.getId();
+        return userService.LogOut(userId, request, response);
     }
 
     @PostMapping("/set-password")

@@ -3,6 +3,12 @@ package com.practice.firstapp.service;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import com.practice.firstapp.config.SingletonLogger;
+import com.practice.firstapp.exception.ResourceNotFoundException;
+import com.practice.firstapp.exception.InsufficientBalanceException;
+import com.practice.firstapp.exception.InvalidAmountException;
+import com.practice.firstapp.exception.BadRequestException;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +28,8 @@ import jakarta.transaction.Transactional;
 @Service
 public class WalletService {
 
+    private static final SingletonLogger log = SingletonLogger.log();
+
     private WalletRepo walletRepo;
     private TransactionRepo transactionRepo;
 
@@ -38,11 +46,11 @@ public class WalletService {
         TransactionType type = request.getType();
 
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Invalid amount");
+            throw new InvalidAmountException("Invalid amount");
         }
 
         Wallet wallet = walletRepo.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
         BigDecimal newBalance;
 
@@ -50,7 +58,7 @@ public class WalletService {
         if (type == TransactionType.DEBIT) {
 
             if (wallet.getBalance().compareTo(amount) < 0) {
-                throw new RuntimeException("Insufficient balance");
+                throw new InsufficientBalanceException("Insufficient balance");
             }
 
             newBalance = wallet.getBalance().subtract(amount);
@@ -85,11 +93,11 @@ public class WalletService {
     @Transactional
     public void createPendingTransaction(Long userId, BigDecimal amount, String referenceId, String provider) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Invalid amount");
+            throw new InvalidAmountException("Invalid amount");
         }
 
         Wallet wallet = walletRepo.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
         Transaction txn = new Transaction();
         txn.setWallet(wallet);
@@ -106,10 +114,10 @@ public class WalletService {
     @CacheEvict(value = "user", key = "#userId", cacheManager = "cacheManager")
     public void approveTransaction(Long userId, String referenceId) {
         Transaction txn = transactionRepo.findByReferenceId(referenceId)
-                .orElseThrow(() -> new RuntimeException("Transaction not found for reference ID: " + referenceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found for reference ID: " + referenceId));
 
         if (txn.getStatus() != TransactionStatus.PENDING) {
-            throw new RuntimeException("Transaction is not in PENDING state");
+            throw new BadRequestException("Transaction is not in PENDING state");
         }
 
         Wallet wallet = txn.getWallet();

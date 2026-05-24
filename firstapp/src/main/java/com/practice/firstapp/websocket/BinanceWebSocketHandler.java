@@ -1,6 +1,7 @@
 package com.practice.firstapp.websocket;
 
 import org.springframework.stereotype.Component;
+import com.practice.firstapp.config.SingletonLogger;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -18,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class BinanceWebSocketHandler extends TextWebSocketHandler {
 
+    private static final SingletonLogger log = SingletonLogger.log();
+
     private final String BINANCE_WS_URL = "wss://stream.binance.com:9443/ws/";
 
     // Track Binance connections per browser session to close them later
@@ -34,14 +37,14 @@ public class BinanceWebSocketHandler extends TextWebSocketHandler {
         }
 
         String binanceUrl = BINANCE_WS_URL + symbol.toLowerCase() + "@ticker";
-        System.out.println("BRIDGE ATTEMPT: " + symbol + " -> " + binanceUrl);
+        log.info("BRIDGE ATTEMPT: {} -> {}", symbol, binanceUrl);
 
         Disposable connection = HttpClient.create()
                 .resolver(DefaultAddressResolverGroup.INSTANCE)
                 .websocket(WebsocketClientSpec.builder().build())
                 .uri(binanceUrl)
                 .handle((inbound, outbound) -> {
-                    System.out.println("BRIDGE CONNECTED to Binance for: " + symbol);
+                    log.info("BRIDGE CONNECTED to Binance for: {}", symbol);
                     return inbound.receive()
                             .asString()
                             .doOnNext(message -> {
@@ -50,17 +53,17 @@ public class BinanceWebSocketHandler extends TextWebSocketHandler {
                                         session.sendMessage(new TextMessage(message));
                                     }
                                 } catch (Exception e) {
-                                    System.err.println("Forward Error: " + e.getMessage());
+                                    log.error("Forward Error: {}", e.getMessage(), e);
                                 }
                             })
-                            .doOnTerminate(() -> System.out.println("Binance Stream Terminated for: " + symbol))
+                            .doOnTerminate(() -> log.info("Binance Stream Terminated for: {}", symbol))
                             .then();
                 })
                 .doOnError(
-                        err -> System.err.println("Binance Connection FAILED for " + symbol + ": " + err.getMessage()))
+                        err -> log.error("Binance Connection FAILED for {}: {}", symbol, err.getMessage(), err))
                 .retryWhen(Retry.backoff(10, Duration.ofSeconds(2))
                         .doBeforeRetry(
-                                retrySignal -> System.out.println("Retrying Binance connection for " + symbol + "...")))
+                                retrySignal -> log.info("Retrying Binance connection for {}...", symbol)))
                 .subscribe();
 
         binanceConnections.put(session.getId(), connection);
@@ -71,7 +74,7 @@ public class BinanceWebSocketHandler extends TextWebSocketHandler {
         Disposable connection = binanceConnections.remove(session.getId());
         if (connection != null && !connection.isDisposed()) {
             connection.dispose();
-            System.out.println("Closed bridge for session: " + session.getId());
+            log.info("Closed bridge for session: {}", session.getId());
         }
     }
 }

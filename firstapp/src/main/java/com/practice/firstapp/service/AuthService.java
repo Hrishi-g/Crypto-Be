@@ -7,31 +7,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
+import com.practice.firstapp.config.SingletonLogger;
+import com.practice.firstapp.exception.UserAlreadyExistsException;
+import com.practice.firstapp.exception.InvalidTokenException;
 
 import com.practice.firstapp.config.Utility;
 import com.practice.firstapp.dto.AuthDto;
 import com.practice.firstapp.dto.LoginReqDto;
 import com.practice.firstapp.dto.SignUpReqDto;
 import com.practice.firstapp.dto.UserProfileDto;
+import com.practice.firstapp.repo.RefreshTokenRepo;
 import com.practice.firstapp.repo.ResetPassTokenRepo;
-// import com.practice.firstapp.dto.UserUpdateReqDto;
 import com.practice.firstapp.repo.UserRepo;
 import com.practice.firstapp.security.JwtUtils;
 import com.practice.firstapp.vo.Refresh_token;
 import com.practice.firstapp.vo.ResetPassToken;
 import com.practice.firstapp.vo.Users;
 import com.practice.firstapp.vo.Wallet;
+
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,6 +40,7 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class AuthService {
+    private static final SingletonLogger log = SingletonLogger.log();
     private UserRepo userRepo;
     private PasswordEncoder passwordEncoder;
     private AuthenticationManager authenticationManager;
@@ -47,10 +49,11 @@ public class AuthService {
     private UserService userService;
     private ResetPassTokenRepo resetPassTokenRepo;
     private EmailService emailService;
+    private final RefreshTokenRepo refreshTokenRepo;
 
     AuthService(UserRepo userRepo, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager,
             JwtUtils jwtUtils, Utility utility, UserService userService, ResetPassTokenRepo resetPassTokenRepo,
-            EmailService emailService) {
+            EmailService emailService, RefreshTokenRepo refreshTokenRepo) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -59,6 +62,7 @@ public class AuthService {
         this.userService = userService;
         this.resetPassTokenRepo = resetPassTokenRepo;
         this.emailService = emailService;
+        this.refreshTokenRepo = refreshTokenRepo;
     }
 
     private String generateUsername(String name) {
@@ -70,9 +74,8 @@ public class AuthService {
     @Transactional
     public ResponseEntity<?> SignUp(@Validated SignUpReqDto signUpReqDto) {
         Users existingUser = userRepo.findByEmail(signUpReqDto.getEmail()).orElse(null);
-
         if (existingUser != null) {
-            throw new RuntimeException("User already exists, Use different email or signIn with your google account");
+            throw new UserAlreadyExistsException("User already exists, Use different email or signIn with your google account");
         }
         Users newUser = new Users();
         newUser.setFirstName(signUpReqDto.getFirstName());
@@ -106,35 +109,6 @@ public class AuthService {
         return ResponseEntity.ok(userRepo.findAll());
     }
 
-    // public ResponseEntity<?> updateUserAsAdmin(Long userId, UserUpdateReqDto
-    // updateReq) {
-    // Users existingUser = userRepo.findById(userId).orElse(null);
-    // if (existingUser == null) {
-    // throw new RuntimeException("User not found");
-    // }
-
-    // if (updateReq.getFirstName() != null) {
-    // existingUser.setFirstName(updateReq.getFirstName());
-    // }
-    // if (updateReq.getLastName() != null) {
-    // existingUser.setLastName(updateReq.getLastName());
-    // }
-    // if (updateReq.getEmail() != null) {
-    // existingUser.setEmail(updateReq.getEmail());
-    // }
-    // if (updateReq.getDob() != null) {
-    // existingUser.setDob(updateReq.getDob());
-    // }
-    // if (updateReq.getRole() != null) {
-    // existingUser.setRole(updateReq.getRole().toUpperCase());
-    // }
-
-    // userRepo.save(existingUser);
-
-    // return ResponseEntity.ok(Map.of("message", "User updated successfully",
-    // "user", existingUser));
-    // }
-
     public ResponseEntity<?> LogIn(LoginReqDto loginReq, HttpServletResponse response) {
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginReq.getIdentifier(), loginReq.getPassword()));
@@ -153,29 +127,11 @@ public class AuthService {
                         "email", user.getEmail() != null ? user.getEmail() : ""));
     }
 
-    @CacheEvict(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
-    public ResponseEntity<?> LogOut(Long userId, HttpServletRequest request,
-            HttpServletResponse response) {
-        String refreshTokenStr = Arrays.stream(request.getCookies() == null ? new Cookie[0] : request.getCookies())
-                .filter(cookie -> "refresh_token".equals(cookie.getName()))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElse(null);
-
-        if (refreshTokenStr != null) {
-            utility.deleteRefreshTokenFromDb(refreshTokenStr);
-        }
-
-        utility.clearCookies(response);
-        SecurityContextHolder.clearContext();
-        return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Logged out successfully"));
-    }
-
     public ResponseEntity<?> preCheck(AuthDto authUser) {
         if (authUser != null) {
-            System.out.println("preCheck user id: " + authUser.getId());
+            log.info("preCheck user id: {}", authUser.getId());
             UserProfileDto checkedUser = userService.getUser(authUser.getId());
-            System.out.println("preCheck checkedUser: " + checkedUser);
+            log.info("preCheck checkedUser: {}", checkedUser);
             if (checkedUser != null) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("authenticated", true);
@@ -238,5 +194,24 @@ public class AuthService {
         resetPassToken.setIsUsed(true);
         resetPassTokenRepo.save(resetPassToken);
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password reset successful"));
+    }
+
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        String refreshTokenStr = Arrays.stream(request.getCookies() == null ? new Cookie[0] : request.getCookies())
+                .filter(cookie -> "refresh_token".equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElseThrow(() -> new InvalidTokenException("Refresh token missing"));
+
+        Refresh_token refreshToken = refreshTokenRepo.findByToken(refreshTokenStr)
+                .map(utility::validateRefreshToken)
+                .orElseThrow(() -> new InvalidTokenException("Refresh token not found"));
+
+        Users user = refreshToken.getUser();
+        String newAccessToken = jwtUtils.generateAccessToken(user);
+
+        utility.addJwtCookie(response, newAccessToken);
+
+        return ResponseEntity.ok(java.util.Map.of("message", "Token refreshed successfully"));
     }
 }

@@ -1,38 +1,52 @@
 package com.practice.firstapp.service;
 
+import java.util.Arrays;
 import java.util.Map;
+
+import com.practice.firstapp.config.SingletonLogger;
+import com.practice.firstapp.exception.ResourceNotFoundException;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.practice.firstapp.config.Utility;
 import com.practice.firstapp.dto.PasswordResetReqDto;
 import com.practice.firstapp.dto.UpdateUserProfile;
 import com.practice.firstapp.dto.UserProfileDto;
 import com.practice.firstapp.repo.UserRepo;
 import com.practice.firstapp.vo.Users;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 @Service
 public class UserService {
 
+    private static final SingletonLogger log = SingletonLogger.log();
+
     private UserRepo userRepo;
     private PasswordEncoder passwordEncoder;
+    private Utility utility;
 
-    public UserService(UserRepo userRepo, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepo userRepo, PasswordEncoder passwordEncoder, Utility utility) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
+        this.utility = utility;
     }
 
     @Cacheable(key = "#userId", cacheNames = "user", unless = "#result == null", cacheManager = "cacheManager")
     public UserProfileDto getUser(Long userId) {
-        System.out.println("Cache being set for User Profile");
+        log.info("Cache being set for User Profile");
         Users user = userRepo.findById(userId).orElse(null);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new ResourceNotFoundException("User not found");
         }
         UserProfileDto userProfileDto = new UserProfileDto();
         userProfileDto.setUsername(user.getUsername());
@@ -51,21 +65,16 @@ public class UserService {
 
     @CachePut(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
     public UserProfileDto updateProfile(Long userId, UpdateUserProfile updateReq) {
-        Users existingUser = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-
+        Users existingUser = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (updateReq.getFirstName() != null) {
             existingUser.setFirstName(updateReq.getFirstName());
         }
         if (updateReq.getLastName() != null) {
             existingUser.setLastName(updateReq.getLastName());
         }
-        if (updateReq.getEmail() != null) {
-            existingUser.setEmail(updateReq.getEmail());
-        }
         if (updateReq.getDob() != null) {
             existingUser.setDob(updateReq.getDob());
         }
-
         userRepo.save(existingUser);
         UserProfileDto userProfileDto = new UserProfileDto();
         userProfileDto.setUsername(existingUser.getUsername());
@@ -92,6 +101,22 @@ public class UserService {
         userRepo.save(user);
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password set successfully"));
 
+    }
+
+    @CacheEvict(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
+    public ResponseEntity<?> LogOut(Long userId, HttpServletRequest request,
+            HttpServletResponse response) {
+        String refreshTokenStr = Arrays.stream(request.getCookies() == null ? new Cookie[0] : request.getCookies())
+                .filter(cookie -> "refresh_token".equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
+        if (refreshTokenStr != null) {
+            utility.deleteRefreshTokenFromDb(refreshTokenStr);
+        }
+        utility.clearCookies(response);
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Logged out successfully"));
     }
 
 }

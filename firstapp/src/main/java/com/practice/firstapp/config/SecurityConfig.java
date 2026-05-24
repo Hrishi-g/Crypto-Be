@@ -19,6 +19,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.practice.firstapp.config.SingletonLogger;
 import com.practice.firstapp.security.CsrfCookieFilter;
 import com.practice.firstapp.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.practice.firstapp.security.JwtFilter;
@@ -32,6 +33,8 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+        private static final SingletonLogger log = SingletonLogger.log();
 
         private JwtFilter jwtFilter;
         private CsrfCookieFilter csrfCookieFilter;
@@ -97,12 +100,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/actuator/health").permitAll()
                                                 .requestMatchers("/home/crypto/**").permitAll()
                                                 .requestMatchers("/ws/crypto/**").permitAll()
-                                                .requestMatchers("/auth/admin/**").hasRole("ADMIN")
-                                                .requestMatchers("/auth/refresh").permitAll()
+                                                // .requestMatchers("/auth/admin/**").hasRole("ADMIN")
                                                 .requestMatchers("/payment/**").authenticated()
                                                 .requestMatchers("/auth/**").permitAll()
-                                                .requestMatchers("/cache/**").permitAll()
-                                                .requestMatchers("/auth/logout").authenticated()
+                                                // .requestMatchers("/cache/**").permitAll()
                                                 .requestMatchers("/portfolio/**").authenticated()
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers("/user/**").authenticated()
@@ -118,8 +119,7 @@ public class SecurityConfig {
                                                                                                 clientRegistrationRepository)))
                                                 .successHandler(oauth2SuccessHandler)
                                                 .failureHandler((request, response, exception) -> {
-                                                        System.err.println("OAuth2 Login Failed:");
-                                                        exception.printStackTrace();
+                                                        log.error("OAuth2 Login Failed: {}", exception.getMessage(), exception);
                                                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                                                         response.setContentType("text/plain");
                                                         response.getWriter().write(
