@@ -33,120 +33,127 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private JwtFilter jwtFilter;
-    private CsrfCookieFilter csrfCookieFilter;
-    private OAuth2SuccessHandler oauth2SuccessHandler;
-    private HttpCookieOAuth2AuthorizationRequestRepository cookieRepository;
+        private JwtFilter jwtFilter;
+        private CsrfCookieFilter csrfCookieFilter;
+        private OAuth2SuccessHandler oauth2SuccessHandler;
+        private HttpCookieOAuth2AuthorizationRequestRepository cookieRepository;
 
-    public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter,
-            OAuth2SuccessHandler oauth2SuccessHandler,
-            HttpCookieOAuth2AuthorizationRequestRepository cookieRepository) {
-        this.jwtFilter = jwtFilter;
-        this.csrfCookieFilter = csrfCookieFilter;
-        this.oauth2SuccessHandler = oauth2SuccessHandler;
-        this.cookieRepository = cookieRepository;
-    }
+        public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter,
+                        OAuth2SuccessHandler oauth2SuccessHandler,
+                        HttpCookieOAuth2AuthorizationRequestRepository cookieRepository) {
+                this.jwtFilter = jwtFilter;
+                this.csrfCookieFilter = csrfCookieFilter;
+                this.oauth2SuccessHandler = oauth2SuccessHandler;
+                this.cookieRepository = cookieRepository;
+        }
 
-    @Bean
-    public CsrfTokenRequestAttributeHandler requestHandler() {
-        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        // This is key: by setting this to null, Spring Security will automatically
-        // look for the header named "X-XSRF-TOKEN"
-        requestHandler.setCsrfRequestAttributeName(null);
-        return requestHandler;
-    }
+        @Bean
+        public CsrfTokenRequestAttributeHandler requestHandler() {
+                CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+                // This is key: by setting this to null, Spring Security will automatically
+                // look for the header named "X-XSRF-TOKEN"
+                requestHandler.setCsrfRequestAttributeName(null);
+                return requestHandler;
+        }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(
-                List.of("http://localhost:[*]", "http://127.0.0.1:[*]", "http://localhost:5173"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("*"));
-        config.setMaxAge(3600L);
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowCredentials(true);
+                config.setAllowedOriginPatterns(
+                                List.of("http://localhost:[*]", "http://127.0.0.1:[*]", "http://localhost:5173"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowedMethods(List.of("*"));
+                config.setMaxAge(3600L);
+                source.registerCorsConfiguration("/**", config);
+                return source;
+        }
 
-    private OAuth2AuthorizationRequestResolver authorizationRequestResolver(
-            ClientRegistrationRepository clientRegistrationRepository) {
+        private OAuth2AuthorizationRequestResolver authorizationRequestResolver(
+                        ClientRegistrationRepository clientRegistrationRepository) {
 
-        DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(
-                clientRegistrationRepository, "/oauth2/authorization");
+                DefaultOAuth2AuthorizationRequestResolver authorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(
+                                clientRegistrationRepository, "/oauth2/authorization");
 
-        authorizationRequestResolver.setAuthorizationRequestCustomizer(
-                customizer -> customizer.additionalParameters(params -> params.put("prompt", "select_account")));
+                authorizationRequestResolver.setAuthorizationRequestCustomizer(
+                                customizer -> customizer.additionalParameters(
+                                                params -> params.put("prompt", "select_account")));
 
-        return authorizationRequestResolver;
-    }
+                return authorizationRequestResolver;
+        }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-            ClientRegistrationRepository clientRegistrationRepository) throws Exception {
-        return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(requestHandler())
-                        .ignoringRequestMatchers("/auth/**", "/actuator/health", "/home/crypto/**", "/ws/crypto/**"))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/home/crypto/**").permitAll()
-                        .requestMatchers("/ws/crypto/**").permitAll()
-                        .requestMatchers("/auth/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/auth/refresh").permitAll()
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/cache/**").permitAll()
-                        .requestMatchers("/auth/logout").authenticated()
-                        .requestMatchers("/portfolio/**").authenticated()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/user/**").authenticated()
-                        .requestMatchers("/wallet/**").authenticated()
-                        .requestMatchers("/trade/**").authenticated()
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
-                .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authEndpoint -> authEndpoint
-                                .authorizationRequestRepository(cookieRepository)
-                                .authorizationRequestResolver(
-                                        authorizationRequestResolver(clientRegistrationRepository)))
-                        .successHandler(oauth2SuccessHandler)
-                        .failureHandler((request, response, exception) -> {
-                            System.err.println("OAuth2 Login Failed:");
-                            exception.printStackTrace();
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("text/plain");
-                            response.getWriter().write("OAuth2 Error: " + exception.getMessage());
-                        }))
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            // This prevents the browser popup by sending a clean 401
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized access");
-                        }))
-                .httpBasic(basic -> basic.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
-                .build();
-    }
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                        ClientRegistrationRepository clientRegistrationRepository) throws Exception {
+                return http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .csrf(csrf -> csrf
+                                                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                                                .csrfTokenRequestHandler(requestHandler())
+                                                .ignoringRequestMatchers("/auth/**", "/actuator/health",
+                                                                "/home/crypto/**", "/ws/crypto/**"))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/actuator/health").permitAll()
+                                                .requestMatchers("/home/crypto/**").permitAll()
+                                                .requestMatchers("/ws/crypto/**").permitAll()
+                                                .requestMatchers("/auth/admin/**").hasRole("ADMIN")
+                                                .requestMatchers("/auth/refresh").permitAll()
+                                                .requestMatchers("/payment/**").authenticated()
+                                                .requestMatchers("/auth/**").permitAll()
+                                                .requestMatchers("/cache/**").permitAll()
+                                                .requestMatchers("/auth/logout").authenticated()
+                                                .requestMatchers("/portfolio/**").authenticated()
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers("/user/**").authenticated()
+                                                .requestMatchers("/wallet/**").authenticated()
+                                                .requestMatchers("/trade/**").authenticated()
+                                                .requestMatchers("/actuator/**").hasRole("ADMIN")
+                                                .anyRequest().authenticated())
+                                .oauth2Login(oauth2 -> oauth2
+                                                .authorizationEndpoint(authEndpoint -> authEndpoint
+                                                                .authorizationRequestRepository(cookieRepository)
+                                                                .authorizationRequestResolver(
+                                                                                authorizationRequestResolver(
+                                                                                                clientRegistrationRepository)))
+                                                .successHandler(oauth2SuccessHandler)
+                                                .failureHandler((request, response, exception) -> {
+                                                        System.err.println("OAuth2 Login Failed:");
+                                                        exception.printStackTrace();
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("text/plain");
+                                                        response.getWriter().write(
+                                                                        "OAuth2 Error: " + exception.getMessage());
+                                                }))
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint((request, response, authException) -> {
+                                                        // This prevents the browser popup by sending a clean 401
+                                                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+                                                                        "Unauthorized access");
+                                                }))
+                                .httpBasic(basic -> basic.disable())
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
+                                .build();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+                return config.getAuthenticationManager();
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    @Bean
-    public WebClient webClient() {
-        return WebClient.builder()
-                .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
-                .build();
-    }
+        @Bean
+        public WebClient webClient() {
+                return WebClient.builder()
+                                .defaultHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                                .build();
+        }
 }

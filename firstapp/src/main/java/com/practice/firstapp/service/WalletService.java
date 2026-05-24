@@ -81,4 +81,56 @@ public class WalletService {
         Pageable pageable = PageRequest.of(page, size);
         return transactionRepo.findByWalletUserIdOrderByCreatedAtDesc(userId, pageable);
     }
+
+    @Transactional
+    public void createPendingTransaction(Long userId, BigDecimal amount, String referenceId, String provider) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Invalid amount");
+        }
+
+        Wallet wallet = walletRepo.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        Transaction txn = new Transaction();
+        txn.setWallet(wallet);
+        txn.setAmount(amount);
+        txn.setType(TransactionType.CREDIT);
+        txn.setStatus(TransactionStatus.PENDING);
+        txn.setReferenceId(referenceId);
+        txn.setDescription(provider.toUpperCase() + ": Deposit of amount " + amount);
+
+        transactionRepo.save(txn);
+    }
+
+    @Transactional
+    @CacheEvict(value = "user", key = "#userId", cacheManager = "cacheManager")
+    public void approveTransaction(Long userId, String referenceId) {
+        Transaction txn = transactionRepo.findByReferenceId(referenceId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found for reference ID: " + referenceId));
+
+        if (txn.getStatus() != TransactionStatus.PENDING) {
+            throw new RuntimeException("Transaction is not in PENDING state");
+        }
+
+        Wallet wallet = txn.getWallet();
+        BigDecimal newBalance = wallet.getBalance().add(txn.getAmount());
+
+        wallet.setBalance(newBalance);
+        walletRepo.save(wallet);
+
+        txn.setStatus(TransactionStatus.SUCCESS);
+        txn.setBalanceAfter(newBalance);
+        transactionRepo.save(txn);
+    }
+
+    @Transactional
+    public void rejectTransaction(String referenceId) {
+        Transaction txn = transactionRepo.findByReferenceId(referenceId)
+                .orElse(null);
+
+        if (txn != null && txn.getStatus() == TransactionStatus.PENDING) {
+            txn.setStatus(TransactionStatus.FAILED);
+            transactionRepo.save(txn);
+        }
+    }
 }

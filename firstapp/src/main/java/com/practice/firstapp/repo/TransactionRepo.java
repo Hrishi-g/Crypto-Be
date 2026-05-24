@@ -1,5 +1,7 @@
 package com.practice.firstapp.repo;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +14,8 @@ import com.practice.firstapp.vo.Transaction;
 @Repository
 public interface TransactionRepo extends JpaRepository<Transaction, Long> {
 
+    Optional<Transaction> findByReferenceId(String referenceId);
+
     @Query("SELECT new com.practice.firstapp.dto.TransactionHistory(t.type, t.asset, t.createdAt, t.quantity, t.price, t.amount, t.balanceAfter) "
             + "FROM Transaction t "
             + "WHERE t.wallet.user.id = :userId "
@@ -19,3 +23,4 @@ public interface TransactionRepo extends JpaRepository<Transaction, Long> {
     Slice<TransactionHistory> findByWalletUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
 }
+

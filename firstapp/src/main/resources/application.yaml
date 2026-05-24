@@ -63,6 +63,10 @@ crypto:
   logo-dev:
     image-token: ${CRYPTO_IMAGE_TOKEN}
 
+rayzorpay:
+  api-key: ${RAYZORPAY_API_KEY}
+  key-secret: ${RAYZORPAY_KEY_SECRET}
+
 cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN}
 
