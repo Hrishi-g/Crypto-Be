@@ -10,6 +10,7 @@ import com.practice.firstapp.exception.InsufficientBalanceException;
 import com.practice.firstapp.exception.InvalidAmountException;
 import com.practice.firstapp.exception.ExternalServiceException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,9 @@ import com.practice.firstapp.vo.enums.TransactionType;
 
 @Service
 public class TradeService {
+
+    @Value("${crypto-base-url.binance}")
+    private String binanceBaseUrl;
 
     private static final SingletonLogger log = SingletonLogger.log();
 
@@ -61,7 +65,7 @@ public class TradeService {
                 symbol = symbol + "USDT";
             }
 
-            String binanceUrl = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol;
+            String binanceUrl = binanceBaseUrl + "/api/v3/ticker/price?symbol=" + symbol;
             Map<String, String> bResponse = restTemplate.getForObject(binanceUrl, Map.class);
 
             if (bResponse != null && bResponse.containsKey("price")) {

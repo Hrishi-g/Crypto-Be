@@ -1,5 +1,6 @@
 package com.practice.firstapp.websocket;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import com.practice.firstapp.config.SingletonLogger;
 import org.springframework.web.socket.CloseStatus;
@@ -19,9 +20,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class BinanceWebSocketHandler extends TextWebSocketHandler {
 
+    @Value("${crypto-base-url.binance-websocket}")
+    private String binanceWebSocketUrl;
+
     private static final SingletonLogger log = SingletonLogger.log();
 
-    private final String BINANCE_WS_URL = "wss://stream.binance.com:9443/ws/";
+    // private final String BINANCE_WS_URL = ch"wss://stream.binance.com:9443/ws/";
 
     // Track Binance connections per browser session to close them later
     private final Map<String, Disposable> binanceConnections = new ConcurrentHashMap<>();
@@ -36,7 +40,7 @@ public class BinanceWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        String binanceUrl = BINANCE_WS_URL + symbol.toLowerCase() + "@ticker";
+        String binanceUrl = binanceWebSocketUrl + symbol.toLowerCase() + "@ticker";
         log.info("BRIDGE ATTEMPT: {} -> {}", symbol, binanceUrl);
 
         Disposable connection = HttpClient.create()

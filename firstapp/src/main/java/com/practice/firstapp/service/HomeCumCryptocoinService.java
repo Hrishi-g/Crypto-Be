@@ -40,6 +40,18 @@ public class HomeCumCryptocoinService {
     @Value("${crypto.logo-dev.image-token}")
     private String imageToken;
 
+    @Value("${crypto-base-url.binance}")
+    private String binanceBaseUrl;
+
+    @Value("${crypto-base-url.coingecko}")
+    private String coingeckoBaseUrl;
+
+    @Value("${crypto-base-url.exchange-rate}")
+    private String exchangeRateBaseUrl;
+
+    @Value("${crypto-base-url.image}")
+    private String imageBaseUrl;
+
     private final WebClient webClient;
 
     public HomeCumCryptocoinService(WebClient webClient) {
@@ -53,7 +65,8 @@ public class HomeCumCryptocoinService {
     public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
         log.info("Fetching real crypto data from CoinGecko (Page: {}, Size: {})...", page, perPage);
         String url = String.format(
-                "https://api.coingecko.com/api/v3/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=%d&page=%d",
+                "%s/api/v3/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=%d&page=%d",
+                coingeckoBaseUrl,
                 perPage,
                 page);
         return webClient.get()
@@ -74,7 +87,7 @@ public class HomeCumCryptocoinService {
     @Cacheable(value = "crypto-data", key = "'search-' + #query", cacheManager = "asyncCacheManager")
     public Mono<List<CryptoDto>> searchCrypto(String query) {
         log.info("Searching for crypto with query: {}", query);
-        String searchUrl = "https://api.coingecko.com/api/v3/search?query=" + query;
+        String searchUrl = coingeckoBaseUrl + "/api/v3/search?query=" + query;
         return webClient.get()
                 .uri(searchUrl)
                 .retrieve()
@@ -86,15 +99,16 @@ public class HomeCumCryptocoinService {
                     }
                     // Get top 10 matching coin IDs
                     List<String> ids = searchResponse.getCoins().stream()
-                             .limit(10)
-                             .map(SearchResponseDto.SearchCoinDto::getId)
-                             .toList();
+                            .limit(10)
+                            .map(SearchResponseDto.SearchCoinDto::getId)
+                            .toList();
                     if (ids.isEmpty()) {
                         return Mono.just(List.<CryptoDto>of());
                     }
                     String idsJoined = String.join(",", ids);
                     String marketsUrl = String.format(
-                            "https://api.coingecko.com/api/v3/coins/markets?vs_currency=inr&ids=%s&order=market_cap_desc",
+                            "%s/api/v3/coins/markets?vs_currency=inr&ids=%s&order=market_cap_desc",
+                            coingeckoBaseUrl,
                             idsJoined);
                     return webClient.get()
                             .uri(marketsUrl)
@@ -113,7 +127,7 @@ public class HomeCumCryptocoinService {
     // "asyncCacheManager")
     public Mono<Double> getUsdToInrRate() {
         return webClient.get()
-                .uri("https://api.frankfurter.dev/v2/rate/USD/INR")
+                .uri(exchangeRateBaseUrl + "/v2/rate/USD/INR")
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(response -> {
@@ -136,7 +150,7 @@ public class HomeCumCryptocoinService {
         String istTime = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         return webClient.get()
-                .uri("https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
+                .uri(binanceBaseUrl + "/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
                         symbol.toUpperCase(), interval, limit)
                 .retrieve()
                 .bodyToMono(Object.class)
@@ -162,7 +176,7 @@ public class HomeCumCryptocoinService {
     public void fetchAndCacheTopCoins() {
         log.info("Fetching crypto markets to show on home page using postConstruct");
         webClient.get()
-                .uri("https://api.binance.com/api/v3/ticker/24hr")
+                .uri(binanceBaseUrl + "/api/v3/ticker/24hr")
                 .retrieve()
                 .bodyToFlux(BinanceTickerDto.class)
                 .filter(ticker -> ticker.getSymbol() != null && ticker.getSymbol().endsWith("USDT"))
@@ -171,7 +185,7 @@ public class HomeCumCryptocoinService {
                 .map(ticker -> {
                     String baseSymbol = ticker.getSymbol().replace("USDT", "");
                     ticker.setName(baseSymbol);
-                    String formattedImageUri = "https://img.logo.dev/crypto/" + baseSymbol.toLowerCase()
+                    String formattedImageUri = imageBaseUrl + baseSymbol.toLowerCase()
                             + "?token=" + imageToken;
                     ticker.setImage(formattedImageUri);
                     return ticker;

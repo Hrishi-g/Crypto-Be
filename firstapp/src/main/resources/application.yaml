@@ -93,3 +93,14 @@ cookie:
 
 frontend:
   url: ${FRONTEND_URL}
+
+crypto-base-url:
+  binance: ${BINANCE_BASE_URL}
+  binance-websocket: ${BINANCE_WEBSOCKET_URL}
+  coingecko: ${COINGECKO_BASE_URL}
+  exchange-rate: ${EXCHANGE_RATE_BASE_URL}
+  image: ${CRYPTO_IMAGE_BASE_URL}
+
+# cors:
+#   allowed:
+#     origins: ${CORS_ALLOWED_ORIGIN}
