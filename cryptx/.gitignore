@@ -1,0 +1,76 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# Build files
+/target/
+/build/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+
+# env files
+.env
+
+
+# Temp files
+*.tmp
+
+# OS
+.DS_Store
+
+deps.txt
+LOG_FILE_IS_UNDEFINED
+TestSize.java
+deps.txt
+
+.gitattributes
+cryptx\curl_get_output.txt
+cryptx\curl_post_output.txt
+cryptx\error_dump.txt
+cryptx\final_check.txt
+cryptx\temp.txt
+cryptx\temp2.txt
+cryptx\final_check.txt
+cryptx\headers.txt
+cryptx\mvnw
+cryptx\mvnw.cmd
+Dockerfile
+
+src/main/resources/logback-spring.xml
+

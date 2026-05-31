@@ -1,7 +1,0 @@
-package com.practice.firstapp.exception;
-
-public class UserAlreadyExistsException extends RuntimeException {
-    public UserAlreadyExistsException(String message) {
-        super(message);
-    }
-}
