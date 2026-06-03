@@ -119,4 +119,8 @@ public class UserService {
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Logged out successfully"));
     }
 
+    @CacheEvict(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
+    public void evictUserCache(Long userId) {
+        log.info("Evicting user cache for userId: {}", userId);
+    }
 }

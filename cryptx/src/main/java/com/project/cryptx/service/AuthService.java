@@ -195,6 +195,10 @@ public class AuthService {
         userRepo.save(user);
         resetPassToken.setIsUsed(true);
         resetPassTokenRepo.save(resetPassToken);
+        
+        // Evict the user cache so that hasPassword returns true on the next /check call
+        userService.evictUserCache(user.getId());
+
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Password reset successful"));
     }
 
