@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -114,9 +115,11 @@ public class UserService {
         if (refreshTokenStr != null) {
             utility.deleteRefreshTokenFromDb(refreshTokenStr);
         }
-        utility.clearCookies(response);
+        HttpHeaders headers = utility.getClearCookieHeaders();
         SecurityContextHolder.clearContext();
-        return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Logged out successfully"));
+        return ResponseEntity.status(HttpStatus.OK)
+                .headers(headers)
+                .body(Map.of("message", "Logged out successfully"));
     }
 
     @CacheEvict(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")

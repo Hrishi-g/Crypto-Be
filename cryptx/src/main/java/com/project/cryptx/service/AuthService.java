@@ -195,7 +195,7 @@ public class AuthService {
         userRepo.save(user);
         resetPassToken.setIsUsed(true);
         resetPassTokenRepo.save(resetPassToken);
-        
+
         // Evict the user cache so that hasPassword returns true on the next /check call
         userService.evictUserCache(user.getId());
 
@@ -221,28 +221,30 @@ public class AuthService {
         return ResponseEntity.ok(java.util.Map.of("message", "Token refreshed successfully"));
     }
 
-    public ResponseEntity<?> exchangeOAuth2Code(Map<String, String> requestBody, HttpServletResponse response, com.project.cryptx.service.OAuth2CodeService codeService) {
+    public ResponseEntity<?> exchangeOAuth2Code(Map<String, String> requestBody, HttpServletResponse response,
+            com.project.cryptx.service.OAuth2CodeService codeService) {
         String code = requestBody.get("code");
         if (code == null || code.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Authorization code missing"));
         }
-        
+
         Long userId = codeService.consumeCode(code);
         if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired authorization code"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid or expired authorization code"));
         }
-        
+
         Users user = userRepo.findById(userId).orElse(null);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "User not found"));
         }
-        
+
         String jwt = jwtUtils.generateAccessToken(user);
         Refresh_token refreshToken = utility.generateRefreshToken(user);
-        
+
         utility.addJwtCookie(response, jwt);
         utility.addRefreshCookie(response, refreshToken.getToken());
-        
+
         return ResponseEntity.ok(Map.of("message", "Authentication successful"));
     }
 }

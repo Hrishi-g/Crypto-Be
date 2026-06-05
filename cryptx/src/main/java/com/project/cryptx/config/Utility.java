@@ -74,10 +74,10 @@ public class Utility {
         return token;
     }
 
-    public void clearCookies(HttpServletResponse response) {
-        // We reuse createCleanCookie to avoid repeating code
-        response.addHeader(HttpHeaders.SET_COOKIE, createCleanResponseCookie("jwt_token").toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, createCleanResponseCookie("refresh_token").toString());
+    public HttpHeaders getClearCookieHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, createCleanResponseCookie("jwt_token").toString());
+        headers.add(HttpHeaders.SET_COOKIE, createCleanResponseCookie("refresh_token").toString());
         
         // Also clear the XSRF-TOKEN
         ResponseCookie xsrfCookie = ResponseCookie.from("XSRF-TOKEN", "")
@@ -86,7 +86,8 @@ public class Utility {
                 .sameSite("None")
                 .maxAge(0)
                 .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, xsrfCookie.toString());
+        headers.add(HttpHeaders.SET_COOKIE, xsrfCookie.toString());
+        return headers;
     }
 
     public ResponseCookie createCleanResponseCookie(String name) {

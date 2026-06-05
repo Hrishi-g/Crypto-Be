@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.TradeRequestDto;
+import com.project.cryptx.dto.UserProfileDto;
 import com.project.cryptx.exception.ExternalServiceException;
 import com.project.cryptx.exception.InsufficientBalanceException;
 import com.project.cryptx.exception.InvalidAmountException;
@@ -36,13 +37,15 @@ public class TradeService {
     private TransactionRepo transactionRepo;
     private PortFolioService profileService;
     private HomeCumCryptocoinService homeService;
+    private UserService userService;
 
     public TradeService(WalletRepo walletRepo, TransactionRepo transactionRepo, PortFolioService profileService,
-            HomeCumCryptocoinService homeService) {
+            HomeCumCryptocoinService homeService, UserService userService) {
         this.walletRepo = walletRepo;
         this.transactionRepo = transactionRepo;
         this.profileService = profileService;
         this.homeService = homeService;
+        this.userService = userService;
     }
 
     @Transactional
@@ -50,6 +53,13 @@ public class TradeService {
     public ResponseEntity<?> trade(TradeRequestDto request) {
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidAmountException("Invalid purchase amount");
+        }
+
+        UserProfileDto userProfile = userService.getUser(request.getUserId());
+        if (userProfile.getFirstName() == null || userProfile.getFirstName().trim().isEmpty() ||
+            userProfile.getLastName() == null || userProfile.getLastName().trim().isEmpty() ||
+            userProfile.getDob() == null || userProfile.getDob().trim().isEmpty()) {
+            throw new IllegalArgumentException("Please complete your profile details to perform trades.");
         }
 
         // --- BACKEND SECURITY: FETCH LIVE PRICE DYNAMICALLY ---

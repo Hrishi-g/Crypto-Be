@@ -12,8 +12,6 @@ import org.springframework.stereotype.Component;
 
 import com.project.cryptx.repo.UserRepo;
 import com.project.cryptx.security.HttpCookieOAuth2AuthorizationRequestRepository;
-import com.project.cryptx.security.JwtUtils;
-import com.project.cryptx.vo.Refresh_token;
 import com.project.cryptx.vo.Users;
 import com.project.cryptx.vo.Wallet;
 
@@ -27,19 +25,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private String frontendUrl;
 
     private final UserRepo userRepo;
-    private final JwtUtils jwtUtils;
-    private final Utility utility;
     private final HttpCookieOAuth2AuthorizationRequestRepository cookieRepository;
     private final com.project.cryptx.service.OAuth2CodeService codeService;
 
     public OAuth2SuccessHandler(UserRepo userRepo,
-            JwtUtils jwtUtils,
-            Utility utility,
             HttpCookieOAuth2AuthorizationRequestRepository cookieRepository,
             com.project.cryptx.service.OAuth2CodeService codeService) {
         this.userRepo = userRepo;
-        this.jwtUtils = jwtUtils;
-        this.utility = utility;
         this.cookieRepository = cookieRepository;
         this.codeService = codeService;
     }
@@ -50,11 +42,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             Authentication authentication) throws IOException {
 
         OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
+        System.out.println("OAuth2User: " + oauthUser);
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
         String provider = authToken.getAuthorizedClientRegistrationId();
         String providerId = oauthUser.getName();
         String email = oauthUser.getAttribute("email");
-        String userName = oauthUser.getAttribute("name");
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email not provided by OAuth provider");
+        }
+        String firstName = oauthUser.getAttribute("given_name");
+        String lastName = oauthUser.getAttribute("family_name");
 
         // 🔥 Find or create user
         Users user = userRepo.findByProviderAndProviderId(provider, providerId)
@@ -73,7 +70,9 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                     newUser.setProvider(provider);
                     newUser.setProviderId(providerId);
                     newUser.setEmail(email);
-                    newUser.setUsername(generateUsername(userName));
+                    newUser.setFirstName(firstName == null ? "user" : firstName);
+                    newUser.setLastName(lastName == null ? "" : lastName);
+                    newUser.setUsername(generateUsername(email));
                     newUser.setRole("USER");
 
                     // ✅ Initialize Wallet for the new user
@@ -97,10 +96,15 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         response.sendRedirect(redirectUrl);
     }
 
-    private String generateUsername(String name) {
-        String firstName = name.trim().split("\\s+")[0].toLowerCase().replaceAll("[^a-z0-9]", "");
-        String uniquePart = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        return firstName + "_" + uniquePart;
+    private String generateUsername(String email) {
+        String base = email.substring(0, email.indexOf("@"))
+                .toLowerCase()
+                .replaceAll("[^a-z0-9]", "");
+        String uniquePart = UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 8);
+        return base + "_" + uniquePart;
     }
 
 }
