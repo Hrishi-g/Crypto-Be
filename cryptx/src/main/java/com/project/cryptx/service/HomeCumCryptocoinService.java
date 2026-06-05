@@ -101,7 +101,7 @@ public class HomeCumCryptocoinService {
         List<CryptoDto> filtered = allCryptoCache.get().stream()
                 .filter(c -> (c.getName() != null && c.getName().toLowerCase().contains(lowerQuery)) || 
                              (c.getSymbol() != null && c.getSymbol().toLowerCase().contains(lowerQuery)))
-                .collect(Collectors.toList());
+                .toList();
         return Mono.just(filtered);
     }
 
