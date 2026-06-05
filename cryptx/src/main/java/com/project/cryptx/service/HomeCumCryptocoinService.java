@@ -59,7 +59,7 @@ public class HomeCumCryptocoinService {
     private final AtomicReference<List<BinanceTickerDto>> topCoinsCache = new AtomicReference<>(
             Collections.emptyList());
 
-    @Cacheable(value = "crypto-data", key = "'all-crypto-page-' + #page + '-size-' + #perPage", cacheManager = "asyncCacheManager")
+    @Cacheable(value = "crypto-data", key = "'all-crypto-page-' + #page + '-size-' + #perPage", cacheManager = "asyncCacheManager", unless = "#result == null || #result.isEmpty()")
     public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
         log.info("Fetching real crypto data from CoinGecko (Page: {}, Size: {})...", page, perPage);
         String url = String.format(
@@ -82,7 +82,7 @@ public class HomeCumCryptocoinService {
                 });
     }
 
-    @Cacheable(value = "crypto-data", key = "'search-' + #query", cacheManager = "asyncCacheManager")
+    @Cacheable(value = "crypto-data", key = "'search-' + #query", cacheManager = "asyncCacheManager", unless = "#result == null || #result.isEmpty()")
     public Mono<List<CryptoDto>> searchCrypto(String query) {
         log.info("Searching for crypto with query: {}", query);
         String searchUrl = coingeckoBaseUrl + "/api/v3/search?query=" + query;

@@ -9,7 +9,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.TradeRequestDto;
@@ -37,15 +37,17 @@ public class TradeService {
     private TransactionRepo transactionRepo;
     private PortFolioService profileService;
     private HomeCumCryptocoinService homeService;
-    private UserService userService;
+    private final UserService userService;
+    private final WebClient webClient;
 
     public TradeService(WalletRepo walletRepo, TransactionRepo transactionRepo, PortFolioService profileService,
-            HomeCumCryptocoinService homeService, UserService userService) {
+            HomeCumCryptocoinService homeService, UserService userService, WebClient webClient) {
         this.walletRepo = walletRepo;
         this.transactionRepo = transactionRepo;
         this.profileService = profileService;
         this.homeService = homeService;
         this.userService = userService;
+        this.webClient = webClient;
     }
 
     @Transactional
@@ -68,17 +70,22 @@ public class TradeService {
             if (inrRate == null)
                 throw new ExternalServiceException("Could not fetch live USD to INR rate.");
 
-            RestTemplate restTemplate = new RestTemplate();
             String symbol = request.getAsset().toUpperCase();
             if (!symbol.endsWith("USDT")) {
                 symbol = symbol + "USDT";
             }
 
             String binanceUrl = binanceBaseUrl + "/api/v3/ticker/price?symbol=" + symbol;
-            Map<String, String> bResponse = restTemplate.getForObject(binanceUrl, Map.class);
+            
+            // Using the injected WebClient instead of RestTemplate for better performance
+            Map<?, ?> bResponse = webClient.get()
+                    .uri(binanceUrl)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
 
             if (bResponse != null && bResponse.containsKey("price")) {
-                BigDecimal liveUsdPrice = new BigDecimal(bResponse.get("price"));
+                BigDecimal liveUsdPrice = new BigDecimal(String.valueOf(bResponse.get("price")));
                 BigDecimal liveInrPrice = liveUsdPrice.multiply(BigDecimal.valueOf(inrRate));
 
                 // SECURELY recalculate fraction using live backend price to 10 decimal
