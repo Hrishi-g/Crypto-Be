@@ -66,62 +66,20 @@ public class SecurityConfig {
                 return requestHandler;
         }
 
-        // Not a @Bean — only used by Spring Security's CorsFilter to avoid duplicate
-        // headers
-        // public CorsConfigurationSource corsConfigurationSource() {
-        // UrlBasedCorsConfigurationSource source = new
-        // UrlBasedCorsConfigurationSource();
-        // CorsConfiguration config = new CorsConfiguration();
-        // config.setAllowCredentials(true);
-        // config.setAllowedOriginPatterns(
-        // List.of("http://localhost:[*]", "https://localhost:[*]",
-        // "http://*.vercel.app", "https://*.vercel.app",
-        // "http://127.0.0.1:[*]", "https://127.0.0.1:[*]",
-        // "http://localhost:5173"));
-        // config.setAllowedHeaders(List.of("*"));
-        // config.setExposedHeaders(List.of("*"));
-        // config.setAllowedMethods(
-        // List.of(
-        // "GET",
-        // "POST",
-        // "PUT",
-        // "DELETE",
-        // "OPTIONS"));
-        // config.setMaxAge(3600L);
-        // source.registerCorsConfiguration("/**", config);
-        // return source;
-        // }
-
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
-
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-
                 CorsConfiguration config = new CorsConfiguration();
-
                 config.setAllowCredentials(true);
-
                 config.setAllowedOriginPatterns(
                                 Arrays.stream(allowedOrigins.split(","))
                                                 .map(String::trim)
                                                 .toList());
-
                 config.setAllowedHeaders(List.of("*"));
-
                 config.setExposedHeaders(List.of("*"));
-
-                config.setAllowedMethods(
-                                List.of(
-                                                "GET",
-                                                "POST",
-                                                "PUT",
-                                                "DELETE",
-                                                "OPTIONS"));
-
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                 config.setMaxAge(3600L);
-
                 source.registerCorsConfiguration("/**", config);
-
                 return source;
         }
 
@@ -153,7 +111,8 @@ public class SecurityConfig {
                                         csrf.csrfTokenRepository(repository)
                                                         .csrfTokenRequestHandler(requestHandler())
                                                         .ignoringRequestMatchers("/auth/**", "/actuator/health",
-                                                                        "/home/crypto/**", "/ws/crypto/**");
+                                                                        "/home/crypto/**", "/ws/crypto/**",
+                                                                        "/payment/razorpay/**");
                                 })
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/actuator/health").permitAll()
