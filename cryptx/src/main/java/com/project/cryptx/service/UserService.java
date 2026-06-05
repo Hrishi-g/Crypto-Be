@@ -63,7 +63,7 @@ public class UserService {
         return userProfileDto;
     }
 
-    @CachePut(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
+    @CacheEvict(key = "#userId", cacheNames = "user", cacheManager = "cacheManager")
     public UserProfileDto updateProfile(Long userId, UpdateUserProfile updateReq) {
         Users existingUser = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
