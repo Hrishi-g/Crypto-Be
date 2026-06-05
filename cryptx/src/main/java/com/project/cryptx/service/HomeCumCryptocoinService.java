@@ -58,67 +58,51 @@ public class HomeCumCryptocoinService {
 
     private final AtomicReference<List<BinanceTickerDto>> topCoinsCache = new AtomicReference<>(
             Collections.emptyList());
+            
+    private final AtomicReference<List<CryptoDto>> allCryptoCache = new AtomicReference<>(
+            Collections.emptyList());
 
-    @Cacheable(value = "crypto-data", key = "'all-crypto-page-' + #page + '-size-' + #perPage", cacheManager = "asyncCacheManager", unless = "#result == null || #result.isEmpty()")
-    public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
-        log.info("Fetching real crypto data from CoinGecko (Page: {}, Size: {})...", page, perPage);
+    @PostConstruct
+    @Scheduled(fixedRate = 600000) // 10 minutes
+    public void fetchAndCacheAllCryptoData() {
+        log.info("Scheduled task: Fetching top 250 crypto data from CoinGecko...");
         String url = String.format(
-                "%s/api/v3/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=%d&page=%d",
-                coingeckoBaseUrl,
-                perPage,
-                page);
-        return webClient.get()
+                "%s/api/v3/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=250&page=1",
+                coingeckoBaseUrl);
+        webClient.get()
                 .uri(url)
                 .retrieve()
                 .bodyToFlux(CryptoDto.class)
                 .collectList()
                 .timeout(Duration.ofSeconds(10))
                 .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)))
-                .doOnSuccess(list -> log.info("Successfully fetched {} coins", list != null ? list.size() : 0))
-                .doOnError(error -> log.error("CoinGecko API Error: {}", error.getMessage(), error))
-                .onErrorResume(error -> {
-                    log.warn("Falling back to empty list due to API error");
-                    return Mono.just(List.of());
-                });
+                .doOnSuccess(list -> {
+                    if (list != null && !list.isEmpty()) {
+                        allCryptoCache.set(list);
+                        log.info("Successfully fetched and cached {} coins", list.size());
+                    }
+                })
+                .doOnError(error -> log.error("CoinGecko API Error for all crypto: {}", error.getMessage(), error))
+                .subscribe();
     }
 
-    @Cacheable(value = "crypto-data", key = "'search-' + #query", cacheManager = "asyncCacheManager", unless = "#result == null || #result.isEmpty()")
+    public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
+        List<CryptoDto> allCoins = allCryptoCache.get();
+        int start = (page - 1) * perPage;
+        if (start >= allCoins.size()) {
+            return Mono.just(Collections.emptyList());
+        }
+        int end = Math.min(start + perPage, allCoins.size());
+        return Mono.just(allCoins.subList(start, end));
+    }
+
     public Mono<List<CryptoDto>> searchCrypto(String query) {
-        log.info("Searching for crypto with query: {}", query);
-        String searchUrl = coingeckoBaseUrl + "/api/v3/search?query=" + query;
-        return webClient.get()
-                .uri(searchUrl)
-                .retrieve()
-                .bodyToMono(SearchResponseDto.class)
-                .flatMap(searchResponse -> {
-                    if (searchResponse == null || searchResponse.getCoins() == null
-                            || searchResponse.getCoins().isEmpty()) {
-                        return Mono.just(List.<CryptoDto>of());
-                    }
-                    // Get top 10 matching coin IDs
-                    List<String> ids = searchResponse.getCoins().stream()
-                            .limit(10)
-                            .map(SearchResponseDto.SearchCoinDto::getId)
-                            .toList();
-                    if (ids.isEmpty()) {
-                        return Mono.just(List.<CryptoDto>of());
-                    }
-                    String idsJoined = String.join(",", ids);
-                    String marketsUrl = String.format(
-                            "%s/api/v3/coins/markets?vs_currency=inr&ids=%s&order=market_cap_desc",
-                            coingeckoBaseUrl,
-                            idsJoined);
-                    return webClient.get()
-                            .uri(marketsUrl)
-                            .retrieve()
-                            .bodyToFlux(CryptoDto.class)
-                            .collectList();
-                })
-                .timeout(Duration.ofSeconds(15))
-                .onErrorResume(error -> {
-                    log.error("Search/Markets Error: {}", error.getMessage(), error);
-                    return Mono.just(List.of());
-                });
+        String lowerQuery = query.toLowerCase();
+        List<CryptoDto> filtered = allCryptoCache.get().stream()
+                .filter(c -> (c.getName() != null && c.getName().toLowerCase().contains(lowerQuery)) || 
+                             (c.getSymbol() != null && c.getSymbol().toLowerCase().contains(lowerQuery)))
+                .collect(Collectors.toList());
+        return Mono.just(filtered);
     }
 
     // @Cacheable(value = "exchange-rate", key = "'usd-inr'", cacheManager =
