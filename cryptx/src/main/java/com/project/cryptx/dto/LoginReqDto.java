@@ -4,23 +4,23 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 
 public class LoginReqDto {
     @JsonAlias({ "username", "email" })
-    private String identifier;
+    private String email;
     private String password;
 
     public LoginReqDto() {
     }
 
-    public LoginReqDto(String identifier, String password) {
-        this.identifier = identifier;
+    public LoginReqDto(String email, String password) {
+        this.email = email;
         this.password = password;
     }
 
-    public String getIdentifier() {
-        return identifier;
+    public String getEmail() {
+        return email;
     }
 
-    public void setIdentifier(String identifier) {
-        this.identifier = identifier;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPassword() {

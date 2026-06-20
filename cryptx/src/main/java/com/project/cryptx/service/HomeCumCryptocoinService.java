@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.BinanceTickerDto;
 import com.project.cryptx.dto.CryptoDto;
-import com.project.cryptx.dto.SearchResponseDto;
 import com.project.cryptx.exception.ExternalServiceException;
 
 import reactor.core.publisher.Mono;
@@ -58,9 +57,12 @@ public class HomeCumCryptocoinService {
 
     private final AtomicReference<List<BinanceTickerDto>> topCoinsCache = new AtomicReference<>(
             Collections.emptyList());
-            
+
     private final AtomicReference<List<CryptoDto>> allCryptoCache = new AtomicReference<>(
             Collections.emptyList());
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private final AtomicReference<Double> usdToInrRateCache = new AtomicReference<>(92.5);
 
     @PostConstruct
     @Scheduled(fixedRate = 600000) // 10 minutes
@@ -99,32 +101,40 @@ public class HomeCumCryptocoinService {
     public Mono<List<CryptoDto>> searchCrypto(String query) {
         String lowerQuery = query.toLowerCase();
         List<CryptoDto> filtered = allCryptoCache.get().stream()
-                .filter(c -> (c.getName() != null && c.getName().toLowerCase().contains(lowerQuery)) || 
-                             (c.getSymbol() != null && c.getSymbol().toLowerCase().contains(lowerQuery)))
+                .filter(c -> (c.getName() != null && c.getName().toLowerCase().contains(lowerQuery)) ||
+                        (c.getSymbol() != null && c.getSymbol().toLowerCase().contains(lowerQuery)))
                 .toList();
         return Mono.just(filtered);
     }
 
-    // @Cacheable(value = "exchange-rate", key = "'usd-inr'", cacheManager =
-    // "asyncCacheManager")
-    public Mono<Double> getUsdToInrRate() {
-        return webClient.get()
+    @PostConstruct
+    @Scheduled(fixedRate = 120000) // 1 minute (60,000 ms)
+    public void fetchAndCacheExchangeRate() {
+        log.info("Scheduled task: Fetching USD to INR exchange rate...");
+        webClient.get()
                 .uri(exchangeRateBaseUrl + "/v2/rate/USD/INR")
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(response -> {
                     try {
-                        ObjectMapper mapper = new ObjectMapper();
                         JsonNode json = mapper.readTree(response);
                         return json.get("rate").asDouble();
                     } catch (Exception e) {
-                        throw new ExternalServiceException("Failed to read exchange rate payload", e);
+                        throw new ExternalServiceException("Failed to parse exchange rate", e);
                     }
                 })
-                .onErrorResume(ex -> {
-                    log.error("Error fetching USD to INR exchange rate: {}", ex.getMessage(), ex);
-                    return Mono.just(95.00);
-                });
+                .doOnSuccess(rate -> {
+                    if (rate != null) {
+                        usdToInrRateCache.set(rate);
+                        log.info("Successfully fetched and cached USD to INR exchange rate: {}", rate);
+                    }
+                })
+                .doOnError(ex -> log.error("Exchange Rate API Error: {}", ex.getMessage()))
+                .subscribe();
+    }
+
+    public Mono<Double> getUsdToInrRate() {
+        return Mono.just(usdToInrRateCache.get());
     }
 
     @Cacheable(value = "historical-data", key = "'historical-v3-' + #symbol + '-' + #interval + '-' + #limit", cacheManager = "asyncCacheManager")

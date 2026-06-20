@@ -42,7 +42,6 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             Authentication authentication) throws IOException {
 
         OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
-        System.out.println("OAuth2User: " + oauthUser);
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
         String provider = authToken.getAuthorizedClientRegistrationId();
         String providerId = oauthUser.getName();

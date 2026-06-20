@@ -36,7 +36,7 @@ spring:
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
@@ -85,10 +85,10 @@ logging:
     org.hibernate: WARN
     com.project.cryptx: WARN
     io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics: ERROR
-sentry:
-  dsn: ${SENTRY_DSN_KEY}
-  send-default-pii: true
-  auth-token: ${SENTRY_AUTH_TOKEN}
+# sentry:
+#   dsn: ${SENTRY_DSN_KEY}
+#   send-default-pii: true
+#   auth-token: ${SENTRY_AUTH_TOKEN}
 
 cookie:
   secure: ${COOKIE_SECURE:true}

@@ -60,7 +60,7 @@ public class PortFolioService {
             BigDecimal totalCost = oldQty.multiply(oldAvg)
                     .add(qty.multiply(price));
             BigDecimal newQty = oldQty.add(qty);
-            BigDecimal newAvg = totalCost.divide(newQty, 2, RoundingMode.HALF_UP);
+            BigDecimal newAvg = totalCost.divide(newQty, 8, RoundingMode.HALF_UP);
             portfolio.setQuantity(newQty);
             portfolio.setAvgBuyPrice(newAvg);
         }

@@ -60,23 +60,23 @@ public class RazorPayController {
                 return ResponseEntity.ok(Map.of("message", "Payment verified and wallet updated"));
             } else {
                 // Change transaction status to FAILED in DB
-                walletService.rejectTransaction(orderId);
+                walletService.rejectTransaction(user.getId(), orderId);
                 throw new BadRequestException("Invalid payment signature");
             }
         } catch (Exception e) {
             log.error("Payment verification failed for order: {}", orderId, e);
             // Ensure status is marked FAILED on exception
-            walletService.rejectTransaction(orderId);
+            walletService.rejectTransaction(user.getId(), orderId);
             throw new BadRequestException("Payment verification failed: " + e.getMessage());
         }
     }
 
     @PostMapping("/razorpay/cancel")
-    public ResponseEntity<?> cancelPayment(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> cancelPayment(@AuthenticationPrincipal AuthDto user, @RequestBody Map<String, Object> payload) {
         String orderId = (String) payload.get("orderId");
         log.info("Cancelling Razorpay payment for order: {}", orderId);
         try {
-            walletService.rejectTransaction(orderId);
+            walletService.rejectTransaction(user.getId(), orderId);
             return ResponseEntity.ok(Map.of("message", "Transaction marked as FAILED"));
         } catch (Exception e) {
             log.error("Error cancelling payment for order: {}", orderId, e);

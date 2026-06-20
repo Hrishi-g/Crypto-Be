@@ -114,6 +114,10 @@ public class WalletService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Transaction not found for reference ID: " + referenceId));
 
+        if (!txn.getWallet().getUser().getId().equals(userId)) {
+            throw new BadRequestException("Unauthorized transaction update");
+        }
+
         if (txn.getStatus() != TransactionStatus.PENDING) {
             throw new BadRequestException("Transaction is not in PENDING state");
         }
@@ -130,11 +134,14 @@ public class WalletService {
     }
 
     @Transactional
-    public void rejectTransaction(String referenceId) {
+    public void rejectTransaction(Long userId, String referenceId) {
         Transaction txn = transactionRepo.findByReferenceId(referenceId)
                 .orElse(null);
 
         if (txn != null && txn.getStatus() == TransactionStatus.PENDING) {
+            if (!txn.getWallet().getUser().getId().equals(userId)) {
+                throw new BadRequestException("Unauthorized transaction update");
+            }
             txn.setStatus(TransactionStatus.FAILED);
             transactionRepo.save(txn);
         }

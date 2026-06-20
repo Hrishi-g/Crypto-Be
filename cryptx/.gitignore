@@ -74,3 +74,6 @@ Dockerfile
 
 src/main/resources/logback-spring.xml
 
+
+logs\application.log
+

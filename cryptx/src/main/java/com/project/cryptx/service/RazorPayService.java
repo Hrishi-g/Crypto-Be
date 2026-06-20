@@ -17,14 +17,20 @@ public class RazorPayService {
 
     private static final SingletonLogger log = SingletonLogger.log();
 
-    @Value("${rayzorpay.api-key}")
-    private String apiKey;
+    private final String apiKey;
+    private final String keySecret;
+    private final RazorpayClient razorpayClient;
 
-    @Value("${rayzorpay.key-secret}")
-    private String keySecret;
+    public RazorPayService(
+            @Value("${rayzorpay.api-key}") String apiKey,
+            @Value("${rayzorpay.key-secret}") String keySecret
+    ) throws RazorpayException {
+        this.apiKey = apiKey;
+        this.keySecret = keySecret;
+        this.razorpayClient = new RazorpayClient(apiKey, keySecret);
+    }
 
     public Map<String, Object> createOrder(double amount) throws RazorpayException {
-        RazorpayClient razorpayClient = new RazorpayClient(apiKey, keySecret);
         JSONObject options = new JSONObject();
         options.put("amount", amount * 100);
         options.put("currency", "INR");

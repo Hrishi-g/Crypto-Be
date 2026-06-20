@@ -73,7 +73,10 @@ public class AuthService {
 
     @Transactional
     public ResponseEntity<?> SignUp(@Validated SignUpReqDto signUpReqDto) {
-        Users existingUser = userRepo.findByEmail(signUpReqDto.getEmail()).orElse(null);
+
+        String normalizedEmail = signUpReqDto.getEmail().trim().toLowerCase();
+
+        Users existingUser = userRepo.findByEmail(normalizedEmail).orElse(null);
         if (existingUser != null) {
             throw new UserAlreadyExistsException(
                     "User already exists, Use different email or signIn with your google account");
@@ -82,7 +85,7 @@ public class AuthService {
         newUser.setFirstName(signUpReqDto.getFirstName());
         newUser.setLastName(signUpReqDto.getLastName());
         newUser.setPassword(passwordEncoder.encode(signUpReqDto.getPassword()));
-        newUser.setEmail(signUpReqDto.getEmail());
+        newUser.setEmail(normalizedEmail);
         newUser.setUsername(generateUsername(signUpReqDto.getFirstName()));
         newUser.setDob(signUpReqDto.getDob());
         newUser.setRole("USER");
@@ -112,7 +115,7 @@ public class AuthService {
 
     public ResponseEntity<?> LogIn(LoginReqDto loginReq, HttpServletResponse response) {
         Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginReq.getIdentifier(), loginReq.getPassword()));
+                new UsernamePasswordAuthenticationToken(loginReq.getEmail(), loginReq.getPassword()));
 
         Users user = (Users) auth.getPrincipal();
 
@@ -158,7 +161,8 @@ public class AuthService {
     }
 
     public ResponseEntity<?> sendResetLink(String email) {
-        Users user = userRepo.findByEmail(email).orElse(null);
+        String normalizedEmail = email.trim().toLowerCase();
+        Users user = userRepo.findByEmail(normalizedEmail).orElse(null);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "User not found"));
         }

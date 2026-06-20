@@ -9,6 +9,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,15 +30,21 @@ public class Users implements UserDetails {
     @Column(unique = true)
     private String email;
     private String dob;
+
+    @JsonIgnore
     private String password;
     private String role;
     private String provider;
+
+    @JsonIgnore
     private String providerId;
     @CreationTimestamp
     private String crtd_dt;
     @UpdateTimestamp
     private String updt_dt;
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonIgnore
     private Wallet wallet;
 
     public Wallet getWallet() {

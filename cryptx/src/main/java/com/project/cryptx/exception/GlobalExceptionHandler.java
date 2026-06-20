@@ -14,7 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import com.project.cryptx.config.SingletonLogger;
 import com.razorpay.RazorpayException;
-import io.sentry.Sentry;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -80,7 +79,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ExternalServiceException.class)
     public ResponseEntity<Object> handleExternalService(ExternalServiceException ex) {
         log.error("External service failure: {}", ex.getMessage(), ex);
-        Sentry.captureException(ex);
         return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_GATEWAY);
     }
 
@@ -128,7 +126,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Object> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.error("Database integrity violation occurred: {}", ex.getMessage(), ex);
-        Sentry.captureException(ex);
         return buildErrorResponse("A database constraint conflict occurred. Please ensure unique inputs.",
                 HttpStatus.CONFLICT);
     }
@@ -137,7 +134,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RazorpayException.class)
     public ResponseEntity<Object> handleRazorpayException(RazorpayException ex) {
         log.error("RazorPay API Error: {}", ex.getMessage(), ex);
-        Sentry.captureException(ex);
         return buildErrorResponse("Payment gateway error: " + ex.getMessage(), HttpStatus.BAD_GATEWAY);
     }
 
@@ -145,7 +141,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex) {
         log.error("An unexpected internal error occurred: ", ex);
-        Sentry.captureException(ex);
         return buildErrorResponse("An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
