@@ -8,7 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import jakarta.annotation.PostConstruct;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.beans.factory.annotation.Value;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -63,14 +64,18 @@ public class HomeCumCryptocoinService {
     private static final ObjectMapper mapper = new ObjectMapper();
     private final AtomicReference<Double> usdToInrRateCache = new AtomicReference<>(92.5);
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void initCryptoCache() {
-        fetchAndCacheAllCryptoData().subscribe();
+        fetchAndCacheAllCryptoData().subscribe(
+                null,
+                err -> log.error("Failed to initialize crypto cache on startup: {}", err.getMessage()));
     }
 
     @Scheduled(fixedRate = 600000)
     public void scheduledCryptoFetch() {
-        fetchAndCacheAllCryptoData().subscribe();
+        fetchAndCacheAllCryptoData().subscribe(
+                null,
+                err -> log.error("Failed to fetch crypto cache on schedule: {}", err.getMessage()));
     }
 
     @CircuitBreaker(name = "fetchAndCacheAllCryptoData", fallbackMethod = "fetchAndCacheAllCryptoDataFallback")
@@ -120,16 +125,18 @@ public class HomeCumCryptocoinService {
         return Mono.just(filtered);
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void initExchangeRateCache() {
-        fetchAndCacheExchangeRate()
-                .subscribe();
+        fetchAndCacheExchangeRate().subscribe(
+                null,
+                err -> log.error("Failed to initialize exchange rate cache on startup: {}", err.getMessage()));
     }
 
     @Scheduled(fixedRate = 120000) // 2 minutes
     public void scheduledExchangeRateFetch() {
-        fetchAndCacheExchangeRate()
-                .subscribe();
+        fetchAndCacheExchangeRate().subscribe(
+                null,
+                err -> log.error("Failed to fetch exchange rate cache on schedule: {}", err.getMessage()));
     }
 
     @CircuitBreaker(name = "fetchAndCacheExchangeRate", fallbackMethod = "fetchAndCacheExchangeRateFallback")
@@ -189,7 +196,8 @@ public class HomeCumCryptocoinService {
                 .cache(); // IMPORTANT: Converts the cold Mono into a hot one for actual reactive caching
     }
 
-    public Mono<Map<String, Object>> getHistoricalDataFallback(String symbol, String interval, int limit, Throwable error) {
+    public Mono<Map<String, Object>> getHistoricalDataFallback(String symbol, String interval, int limit,
+            Throwable error) {
         log.error("Historical Data Error: {}", error.getMessage());
         String istTime = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -199,14 +207,18 @@ public class HomeCumCryptocoinService {
         return Mono.just(errorMap);
     }
 
-    @PostConstruct // Runs immediately when the app starts so the cache is never empty
+    @EventListener(ApplicationReadyEvent.class) // Runs immediately when the app starts so the cache is never empty
     public void initTopCoinsCache() {
-        fetchAndCacheTopCoins().subscribe();
+        fetchAndCacheTopCoins().subscribe(
+                null,
+                err -> log.error("Failed to initialize top coins cache on startup: {}", err.getMessage()));
     }
 
     @Scheduled(fixedRate = 3600000) // Runs every 1 hour (3,600,000 milliseconds)
     public void scheduledTopCoinsFetch() {
-        fetchAndCacheTopCoins().subscribe();
+        fetchAndCacheTopCoins().subscribe(
+                null,
+                err -> log.error("Failed to fetch top coins cache on schedule: {}", err.getMessage()));
     }
 
     @CircuitBreaker(name = "fetchAndCacheTopCoins", fallbackMethod = "fetchAndCacheTopCoinsFallback")
