@@ -71,8 +71,6 @@ cryptx\headers.txt
 cryptx\mvnw
 cryptx\mvnw.cmd
 
-src/main/resources/logback-spring.xml
-
 
 logs\application.log
 
