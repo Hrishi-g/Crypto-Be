@@ -70,10 +70,12 @@ cryptx\final_check.txt
 cryptx\headers.txt
 cryptx\mvnw
 cryptx\mvnw.cmd
-Dockerfile
 
 src/main/resources/logback-spring.xml
 
 
 logs\application.log
+
+cryptx/logs/application.log.2026-06-20.0.gz
+.vscode/settings.json
 

@@ -21,18 +21,17 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.BinanceTickerDto;
 import com.project.cryptx.dto.CryptoDto;
 import com.project.cryptx.exception.ExternalServiceException;
-
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
 
+@Slf4j
 @Service
 public class HomeCumCryptocoinService {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     @Value("${crypto.logo-dev.image-token}")
     private String imageToken;
@@ -65,27 +64,41 @@ public class HomeCumCryptocoinService {
     private final AtomicReference<Double> usdToInrRateCache = new AtomicReference<>(92.5);
 
     @PostConstruct
-    @Scheduled(fixedRate = 600000) // 10 minutes
-    public void fetchAndCacheAllCryptoData() {
-        log.info("Scheduled task: Fetching top 250 crypto data from CoinGecko...");
+    public void initCryptoCache() {
+        fetchAndCacheAllCryptoData().subscribe();
+    }
+
+    @Scheduled(fixedRate = 600000)
+    public void scheduledCryptoFetch() {
+        fetchAndCacheAllCryptoData().subscribe();
+    }
+
+    @CircuitBreaker(name = "fetchAndCacheAllCryptoData", fallbackMethod = "fetchAndCacheAllCryptoDataFallback")
+    @Retry(name = "fetchAndCacheAllCryptoData")
+    public Mono<Void> fetchAndCacheAllCryptoData() {
+        log.info("Fetching top 250 crypto data from CoinGecko...");
         String url = String.format(
                 "%s/api/v3/coins/markets?vs_currency=inr&order=market_cap_desc&per_page=250&page=1",
                 coingeckoBaseUrl);
-        webClient.get()
+        return webClient.get()
                 .uri(url)
                 .retrieve()
                 .bodyToFlux(CryptoDto.class)
                 .collectList()
                 .timeout(Duration.ofSeconds(10))
-                .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(2)))
-                .doOnSuccess(list -> {
+                .doOnNext(list -> {
                     if (list != null && !list.isEmpty()) {
                         allCryptoCache.set(list);
-                        log.info("Successfully fetched and cached {} coins", list.size());
+                        log.info("Successfully cached {} coins", list.size());
                     }
                 })
-                .doOnError(error -> log.error("CoinGecko API Error for all crypto: {}", error.getMessage(), error))
-                .subscribe();
+                .then();
+    }
+
+    public Mono<Void> fetchAndCacheAllCryptoDataFallback(Throwable e) {
+        log.error("CoinGecko unavailable: {}", e.getMessage());
+        // keep old cache
+        return Mono.empty();
     }
 
     public Mono<List<CryptoDto>> getAllCrptoData(int page, int perPage) {
@@ -108,10 +121,22 @@ public class HomeCumCryptocoinService {
     }
 
     @PostConstruct
-    @Scheduled(fixedRate = 120000) // 1 minute (60,000 ms)
-    public void fetchAndCacheExchangeRate() {
-        log.info("Scheduled task: Fetching USD to INR exchange rate...");
-        webClient.get()
+    public void initExchangeRateCache() {
+        fetchAndCacheExchangeRate()
+                .subscribe();
+    }
+
+    @Scheduled(fixedRate = 120000) // 2 minutes
+    public void scheduledExchangeRateFetch() {
+        fetchAndCacheExchangeRate()
+                .subscribe();
+    }
+
+    @CircuitBreaker(name = "fetchAndCacheExchangeRate", fallbackMethod = "fetchAndCacheExchangeRateFallback")
+    @Retry(name = "fetchAndCacheExchangeRate")
+    public Mono<Void> fetchAndCacheExchangeRate() {
+        log.info("Fetching USD to INR exchange rate...");
+        return webClient.get()
                 .uri(exchangeRateBaseUrl + "/v2/rate/USD/INR")
                 .retrieve()
                 .bodyToMono(String.class)
@@ -123,51 +148,72 @@ public class HomeCumCryptocoinService {
                         throw new ExternalServiceException("Failed to parse exchange rate", e);
                     }
                 })
-                .doOnSuccess(rate -> {
+                .timeout(Duration.ofSeconds(10))
+                .doOnNext(rate -> {
                     if (rate != null) {
                         usdToInrRateCache.set(rate);
-                        log.info("Successfully fetched and cached USD to INR exchange rate: {}", rate);
+                        log.info("Successfully cached USD INR rate: {}", rate);
                     }
                 })
-                .doOnError(ex -> log.error("Exchange Rate API Error: {}", ex.getMessage()))
-                .subscribe();
+                .then();
+    }
+
+    public Mono<Void> fetchAndCacheExchangeRateFallback(Throwable e) {
+        log.error("Exchange rate service unavailable: {}", e.getMessage());
+        return Mono.empty();
     }
 
     public Mono<Double> getUsdToInrRate() {
-        return Mono.just(usdToInrRateCache.get());
+        Double rate = usdToInrRateCache.get();
+        return Mono.just(rate);
     }
 
+    @CircuitBreaker(name = "getHistoricalData", fallbackMethod = "getHistoricalDataFallback")
+    @Retry(name = "getHistoricalData")
     @Cacheable(value = "historical-data", key = "'historical-v3-' + #symbol + '-' + #interval + '-' + #limit", cacheManager = "asyncCacheManager")
     public Mono<Map<String, Object>> getHistoricalData(String symbol, String interval, int limit) {
-        String istTime = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         return webClient.get()
                 .uri(binanceBaseUrl + "/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
                         symbol.toUpperCase(), interval, limit)
                 .retrieve()
                 .bodyToMono(Object.class)
                 .map(data -> {
+                    String istTime = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                     Map<String, Object> response = new HashMap<>();
                     response.put("tickerData", data);
                     response.put("timestamp", istTime);
                     return response;
                 })
                 .timeout(Duration.ofSeconds(15))
-                .onErrorResume(error -> {
-                    log.error("Historical Data Error: {}", error.getMessage(), error);
-                    Map<String, Object> errorMap = new HashMap<>();
-                    errorMap.put("tickerData", null);
-                    errorMap.put("timestamp", istTime);
-                    return Mono.just(errorMap);
-                })
                 .cache(); // IMPORTANT: Converts the cold Mono into a hot one for actual reactive caching
     }
 
+    public Mono<Map<String, Object>> getHistoricalDataFallback(String symbol, String interval, int limit, Throwable error) {
+        log.error("Historical Data Error: {}", error.getMessage());
+        String istTime = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        Map<String, Object> errorMap = new HashMap<>();
+        errorMap.put("tickerData", null);
+        errorMap.put("timestamp", istTime);
+        return Mono.just(errorMap);
+    }
+
     @PostConstruct // Runs immediately when the app starts so the cache is never empty
+    public void initTopCoinsCache() {
+        fetchAndCacheTopCoins().subscribe();
+    }
+
     @Scheduled(fixedRate = 3600000) // Runs every 1 hour (3,600,000 milliseconds)
-    public void fetchAndCacheTopCoins() {
+    public void scheduledTopCoinsFetch() {
+        fetchAndCacheTopCoins().subscribe();
+    }
+
+    @CircuitBreaker(name = "fetchAndCacheTopCoins", fallbackMethod = "fetchAndCacheTopCoinsFallback")
+    @Retry(name = "fetchAndCacheTopCoins")
+    public Mono<Void> fetchAndCacheTopCoins() {
         log.info("Fetching crypto markets to show on home page using postConstruct");
-        webClient.get()
+        return webClient.get()
                 .uri(binanceBaseUrl + "/api/v3/ticker/24hr")
                 .retrieve()
                 .bodyToFlux(BinanceTickerDto.class)
@@ -183,12 +229,17 @@ public class HomeCumCryptocoinService {
                     return ticker;
                 })
                 .collectList()
-                .subscribe(
-                        top12 -> {
-                            topCoinsCache.set(top12);
-                            log.info("Successfully updated homepage cache using pure Binance + CDN routing");
-                        },
-                        error -> log.error("Failed to fetch Top Coins data: {}", error.getMessage(), error));
+                .timeout(Duration.ofSeconds(15))
+                .doOnNext(top12 -> {
+                    topCoinsCache.set(top12);
+                    log.info("Successfully updated homepage cache using pure Binance + CDN routing");
+                })
+                .then();
+    }
+
+    public Mono<Void> fetchAndCacheTopCoinsFallback(Throwable error) {
+        log.error("Failed to fetch Top Coins data: {}", error.getMessage());
+        return Mono.empty();
     }
 
     public List<BinanceTickerDto> getBinanceTopCoins() {

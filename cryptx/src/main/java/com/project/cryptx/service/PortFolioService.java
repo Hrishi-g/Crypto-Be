@@ -10,7 +10,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.PortfolioDto;
 import com.project.cryptx.dto.TradeRequestDto;
 import com.project.cryptx.exception.InsufficientBalanceException;
@@ -19,10 +18,11 @@ import com.project.cryptx.repo.PortfolioRepo;
 import com.project.cryptx.repo.UserRepo;
 import com.project.cryptx.vo.Portfolio;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class PortFolioService {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private PortfolioRepo portfolioRepo;
     private UserRepo userRepo;

@@ -27,6 +27,8 @@ import com.project.cryptx.security.HttpCookieOAuth2AuthorizationRequestRepositor
 import com.project.cryptx.security.JwtFilter;
 
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -34,6 +36,7 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 
 @Configuration
+@Slf4j
 @EnableWebSecurity
 public class SecurityConfig {
 
@@ -42,8 +45,6 @@ public class SecurityConfig {
 
         @Value("${cookie.secure}")
         private boolean cookieSecure;
-
-        private static final SingletonLogger log = SingletonLogger.log();
 
         private JwtFilter jwtFilter;
         private CsrfCookieFilter csrfCookieFilter;

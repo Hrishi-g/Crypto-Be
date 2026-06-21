@@ -16,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
-import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.config.Utility;
 import com.project.cryptx.dto.AuthDto;
 import com.project.cryptx.dto.LoginReqDto;
@@ -32,15 +31,15 @@ import com.project.cryptx.vo.Refresh_token;
 import com.project.cryptx.vo.ResetPassToken;
 import com.project.cryptx.vo.Users;
 import com.project.cryptx.vo.Wallet;
-
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class AuthService {
-    private static final SingletonLogger log = SingletonLogger.log();
     private UserRepo userRepo;
     private PasswordEncoder passwordEncoder;
     private AuthenticationManager authenticationManager;
@@ -226,12 +225,11 @@ public class AuthService {
     }
 
     public ResponseEntity<?> exchangeOAuth2Code(Map<String, String> requestBody, HttpServletResponse response,
-            com.project.cryptx.service.OAuth2CodeService codeService) {
+            OAuth2CodeService codeService) {
         String code = requestBody.get("code");
         if (code == null || code.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Authorization code missing"));
         }
-
         Long userId = codeService.consumeCode(code);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

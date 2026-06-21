@@ -7,25 +7,24 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import com.project.cryptx.config.SingletonLogger;
-
 import reactor.core.Disposable;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 import reactor.util.retry.Retry;
 import io.netty.resolver.DefaultAddressResolverGroup;
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.Duration;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Component
 public class BinanceWebSocketHandler extends TextWebSocketHandler {
 
     @Value("${crypto-base-url.binance-websocket}")
     private String binanceWebSocketUrl;
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     // private final String BINANCE_WS_URL = ch"wss://stream.binance.com:9443/ws/";
 

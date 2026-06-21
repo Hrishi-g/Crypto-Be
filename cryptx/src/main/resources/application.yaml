@@ -11,6 +11,9 @@ spring:
   application:
     name: firstapp
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
   config:
     import: optional:file:.env[.properties]
 
@@ -36,7 +39,7 @@ spring:
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${DDL_STATUS}
     properties:
       hibernate:
         format_sql: true
@@ -75,16 +78,7 @@ rayzorpay:
 cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN}
 
-logging:
-  file:
-    name: logs/application.log
-  level:
-    root: INFO
-    org.springframework: WARN
-    org.springframework.security: DEBUG
-    org.hibernate: WARN
-    com.project.cryptx: WARN
-    io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics: ERROR
+
 # sentry:
 #   dsn: ${SENTRY_DSN_KEY}
 #   send-default-pii: true
@@ -103,6 +97,119 @@ crypto-base-url:
   exchange-rate: ${EXCHANGE_RATE_BASE_URL}
   image: ${CRYPTO_IMAGE_BASE_URL}
 
-# cors:
-#   allowed:
-#     origins: ${CORS_ALLOWED_ORIGIN}
+# Circuit Breaker config
+resilience4j:
+  circuitbreaker:
+    instances:
+      consumeCode:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+      fetchAndCacheAllCryptoData:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+      fetchAndCacheExchangeRate:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+      getHistoricalData:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+      fetchAndCacheTopCoins:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+      fetchLivePrice:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+      razorPayCreateOrder:
+        registerHealthIndicator: true
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+
+  # TimeLimiter config
+  timelimiter:
+    instances:
+      consumeCode:
+        timeoutDuration: 3s
+        cancelRunningFuture: true
+      fetchAndCacheAllCryptoData:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+      fetchAndCacheExchangeRate:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+      getHistoricalData:
+        timeoutDuration: 15s
+        cancelRunningFuture: true
+      fetchAndCacheTopCoins:
+        timeoutDuration: 15s
+        cancelRunningFuture: true
+
+  retry:
+    instances:
+      consumeCode:
+        maxAttempts: 3
+        waitDuration: 2s
+      fetchAndCacheAllCryptoData:
+        maxAttempts: 3
+        waitDuration: 2s
+      fetchAndCacheExchangeRate:
+        maxAttempts: 3
+        waitDuration: 2s
+      getHistoricalData:
+        maxAttempts: 3
+        waitDuration: 2s
+      fetchAndCacheTopCoins:
+        maxAttempts: 3
+        waitDuration: 2s
+      fetchLivePrice:
+        maxAttempts: 3
+        waitDuration: 2s
+      razorPayCreateOrder:
+        maxAttempts: 3
+        waitDuration: 2s
+
+  bulkhead:
+    instances:
+      tradeService:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 2s
+
+  ratelimiter:
+    instances:
+      emailResetLimiter:
+        limitForPeriod: 3
+        limitRefreshPeriod: 1m
+        timeoutDuration: 0s

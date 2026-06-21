@@ -11,8 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.config.Utility;
 import com.project.cryptx.dto.PasswordResetReqDto;
 import com.project.cryptx.dto.UpdateUserProfile;
@@ -24,11 +22,11 @@ import com.project.cryptx.vo.Users;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class UserService {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private UserRepo userRepo;
     private PasswordEncoder passwordEncoder;

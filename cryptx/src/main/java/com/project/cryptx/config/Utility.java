@@ -15,11 +15,11 @@ import com.project.cryptx.vo.Users;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class Utility {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private RefreshTokenRepo refreshTokenRepo;
 
@@ -78,7 +78,7 @@ public class Utility {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, createCleanResponseCookie("jwt_token").toString());
         headers.add(HttpHeaders.SET_COOKIE, createCleanResponseCookie("refresh_token").toString());
-        
+
         // Also clear the XSRF-TOKEN
         ResponseCookie xsrfCookie = ResponseCookie.from("XSRF-TOKEN", "")
                 .path("/")

@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import com.project.cryptx.config.SingletonLogger;
 import com.razorpay.RazorpayException;
 
 import java.time.LocalDateTime;
@@ -20,10 +19,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.naming.ServiceUnavailableException;
+
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     // 1. Max Upload Size Exceeded
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -150,6 +153,16 @@ public class GlobalExceptionHandler {
         body.put("message", message);
         body.put("status", status.value());
 
+        String uniqueId = MDC.get("CRYPTX_uniqueId");
+        if (uniqueId != null) {
+            body.put("CRYPTX_uniqueId", uniqueId);
+        }
+
         return new ResponseEntity<>(body, status);
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<Object> handle(ServiceUnavailableException e) {
+        return buildErrorResponse(e.getMessage(), HttpStatus.SERVICE_UNAVAILABLE);
     }
 }

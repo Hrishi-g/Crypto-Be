@@ -28,6 +28,12 @@ import com.project.cryptx.vo.Wallet;
 import com.project.cryptx.vo.enums.TransactionStatus;
 import com.project.cryptx.vo.enums.TransactionType;
 
+import lombok.extern.slf4j.Slf4j;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+
+@Slf4j
 @Service
 public class TradeService {
 
@@ -55,7 +61,10 @@ public class TradeService {
         this.self = self;
     }
 
-    private BigDecimal fetchLivePrice(String asset) {
+    @CircuitBreaker(name = "fetchLivePrice", fallbackMethod = "fetchLivePriceFallback")
+    @Retry(name = "fetchLivePrice")
+    public BigDecimal fetchLivePrice(String asset) {
+        log.info("Fetching live price for asset: {}", asset);
         Double inrRate = homeService.getUsdToInrRate().block();
         if (inrRate == null) {
             throw new ExternalServiceException("INR rate unavailable");
@@ -72,10 +81,20 @@ public class TradeService {
             throw new ExternalServiceException("Price unavailable");
         }
         BigDecimal usdPrice = new BigDecimal(String.valueOf(response.get("price")));
-        return usdPrice.multiply(BigDecimal.valueOf(inrRate));
+        BigDecimal inrPrice = usdPrice.multiply(BigDecimal.valueOf(inrRate));
+        log.info("Live price for {}: USD={}, INR={}", asset, usdPrice, inrPrice);
+        return inrPrice;
     }
 
+    public BigDecimal fetchLivePriceFallback(String asset, Throwable t) {
+        log.error("fetchLivePrice fallback triggered for asset {}. Error: {}", asset, t.getMessage());
+        throw new ExternalServiceException("Live price service is currently unavailable. Please try again later.", t);
+    }
+
+    @Bulkhead(name = "tradeService", fallbackMethod = "tradeFallback")
     public ResponseEntity<?> trade(String idempotencyKey, TradeRequestDto request) {
+        log.info("Initiating trade request: User={}, Asset={}, Amount={}, Type={}", 
+                request.getUserId(), request.getAsset(), request.getAmount(), request.getType());
         if (idempotencyKey == null || idempotencyKey.trim().isEmpty() ||
                 "null".equalsIgnoreCase(idempotencyKey) || "undefined".equalsIgnoreCase(idempotencyKey)) {
             throw new IllegalArgumentException("Invalid Idempotency-Key header");
@@ -118,11 +137,15 @@ public class TradeService {
             @CacheEvict(value = "portfolio", key = "#request.userId", cacheManager = "cacheManager")
     })
     public ResponseEntity<?> executeTrade(String idempotencyKey, TradeRequestDto request) {
+        log.info("Executing trade transaction: User={}, Asset={}, Quantity={}, Price={}", 
+                request.getUserId(), request.getAsset(), request.getQuantity(), request.getPrice());
         Wallet wallet = walletRepo.findByUserId(request.getUserId()).orElseThrow();
         BigDecimal amount = request.getAmount();
         Transaction txn = new Transaction();
         if (request.getType() == TransactionType.BUY) {
             if (wallet.getBalance().compareTo(amount) < 0) {
+                log.warn("Insufficient balance for user {}: required={}, current={}", 
+                        request.getUserId(), amount, wallet.getBalance());
                 throw new InsufficientBalanceException("Insufficient balance");
             }
             txn.setDescription(
@@ -153,10 +176,19 @@ public class TradeService {
         key.setTransactionId(saved.getId());
         idompotencyRepo.save(key);
 
+        log.info("Trade transaction successfully executed. Transaction ID: {}, User ID: {}", saved.getId(), request.getUserId());
+
         if (request.getType() == TransactionType.BUY) {
             return ResponseEntity.ok("Bought " + request.getQuantity() + " of " + request.getAsset() + " successfully");
         } else {
             return ResponseEntity.ok("Sold " + request.getQuantity() + " of " + request.getAsset() + " successfully");
         }
+    }
+
+    public ResponseEntity<?> tradeFallback(String idempotencyKey, TradeRequestDto request, Throwable t) {
+        log.error("tradeFallback triggered for user {}. Reason: {}", request.getUserId(), t.getMessage());
+        return ResponseEntity.status(503).body(Map.of(
+                "message", "Trading service is temporarily busy. Please try again in a few moments."
+        ));
     }
 }

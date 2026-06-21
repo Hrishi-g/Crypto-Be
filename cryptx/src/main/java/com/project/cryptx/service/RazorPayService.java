@@ -7,15 +7,16 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.project.cryptx.config.SingletonLogger;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class RazorPayService {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private final String apiKey;
     private final String keySecret;
@@ -30,6 +31,8 @@ public class RazorPayService {
         this.razorpayClient = new RazorpayClient(apiKey, keySecret);
     }
 
+    @CircuitBreaker(name = "razorPayCreateOrder", fallbackMethod = "createOrderFallback")
+    @Retry(name = "razorPayCreateOrder")
     public Map<String, Object> createOrder(double amount) throws RazorpayException {
         JSONObject options = new JSONObject();
         options.put("amount", amount * 100);
@@ -44,6 +47,11 @@ public class RazorPayService {
         response.put("amount", order.get("amount"));
         response.put("currency", order.get("currency"));
         return response;
+    }
+
+    public Map<String, Object> createOrderFallback(double amount, Throwable t) throws RazorpayException {
+        log.error("Failed to create RazorPay order: {}", t.getMessage());
+        throw new RazorpayException("Razorpay payment gateway is currently unavailable. Please try again later.", t);
     }
 
     public boolean verifyPayment(String orderId, String paymentId, String signature) {

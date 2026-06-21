@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,7 +14,6 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.AuthDto;
 
 import io.jsonwebtoken.Claims;
@@ -23,9 +24,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Component
 public class JwtFilter extends OncePerRequestFilter {
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private JwtUtils jwtUtils;
 
@@ -71,11 +72,12 @@ public class JwtFilter extends OncePerRequestFilter {
 
                             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                             SecurityContextHolder.getContext().setAuthentication(authToken);
-                            
+
                             // Successfully authenticated with this token, stop checking others
-                            break; 
+                            break;
                         } else {
-                            log.warn("JWT is invalid or expired for token starting with: {}", token.substring(0, Math.min(10, token.length())));
+                            log.warn("JWT is invalid or expired for token starting with: {}",
+                                    token.substring(0, Math.min(10, token.length())));
                         }
                     }
                 } catch (ExpiredJwtException e) {

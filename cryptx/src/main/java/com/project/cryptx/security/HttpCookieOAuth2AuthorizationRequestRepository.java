@@ -6,9 +6,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.util.StringUtils;
-
-import com.project.cryptx.config.SingletonLogger;
-
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,8 +24,6 @@ import java.util.List;
 @Component
 public class HttpCookieOAuth2AuthorizationRequestRepository
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     public static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
@@ -133,7 +128,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
                 return cls.cast(obj);
             }
         } catch (Exception e) {
-            log.error("Deserialization failed for cookie: {}", cookie.getValue(), e);
+            // log.error("Deserialization failed for cookie: {}", cookie.getValue(), e);
             return null;
         }
     }

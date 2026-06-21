@@ -10,18 +10,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.project.cryptx.config.SingletonLogger;
 import com.project.cryptx.dto.AuthDto;
 import com.project.cryptx.exception.BadRequestException;
 import com.project.cryptx.service.RazorPayService;
 import com.project.cryptx.service.WalletService;
 import com.razorpay.RazorpayException;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequestMapping("/payment")
 public class RazorPayController {
-
-    private static final SingletonLogger log = SingletonLogger.log();
 
     private final RazorPayService razorPayService;
     private final WalletService walletService;
@@ -72,7 +72,8 @@ public class RazorPayController {
     }
 
     @PostMapping("/razorpay/cancel")
-    public ResponseEntity<?> cancelPayment(@AuthenticationPrincipal AuthDto user, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> cancelPayment(@AuthenticationPrincipal AuthDto user,
+            @RequestBody Map<String, Object> payload) {
         String orderId = (String) payload.get("orderId");
         log.info("Cancelling Razorpay payment for order: {}", orderId);
         try {
